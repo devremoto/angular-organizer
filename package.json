@@ -1,0 +1,281 @@
+{
+  "name": "angular-organizer",
+  "displayName": "Angular Organizer",
+  "description": "Organize Angular files: imports + class member ordering (@Input, @Output, etc.)",
+  "version": "0.0.1",
+  "publisher": "Adilson de Almeida Pedro",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Formatters"
+  ],
+  "activationEvents": [
+    "onCommand:angularOrganizer.organize"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "angularOrganizer.organizeAll",
+        "title": "Organize All"
+      },
+      {
+        "command": "angularOrganizer.sortImports",
+        "title": "Sort Imports"
+      },
+      {
+        "command": "angularOrganizer.reorder.allMembers",
+        "title": "Reorder All Members"
+      },
+      {
+        "command": "angularOrganizer.reorder.constants",
+        "title": "Reorder Constants"
+      },
+      {
+        "command": "angularOrganizer.reorder.privateFields",
+        "title": "Reorder Private Fields"
+      },
+      {
+        "command": "angularOrganizer.reorder.protectedFields",
+        "title": "Reorder Protected Fields"
+      },
+      {
+        "command": "angularOrganizer.reorder.inputs",
+        "title": "Reorder @Inputs (properties)"
+      },
+      {
+        "command": "angularOrganizer.reorder.inputSetters",
+        "title": "Reorder @Input Setters"
+      },
+      {
+        "command": "angularOrganizer.reorder.outputs",
+        "title": "Reorder @Outputs"
+      },
+      {
+        "command": "angularOrganizer.reorder.viewQueries",
+        "title": "Reorder View Queries (@ViewChild)"
+      },
+      {
+        "command": "angularOrganizer.reorder.accessors",
+        "title": "Reorder Accessors (non-@Input)"
+      },
+      {
+        "command": "angularOrganizer.reorder.ctor",
+        "title": "Reorder Constructor"
+      },
+      {
+        "command": "angularOrganizer.reorder.publicMethods",
+        "title": "Reorder Public Methods"
+      },
+      {
+        "command": "angularOrganizer.reorder.protectedMethods",
+        "title": "Reorder Protected Methods"
+      },
+      {
+        "command": "angularOrganizer.reorder.privateMethods",
+        "title": "Reorder Private Methods"
+      },
+      {
+        "command": "angularOrganizer.removeCommentsExceptRegions",
+        "title": "Angular Organizer: Remove Comments"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "angularOrganizer.menu",
+        "label": "Angular Organizer"
+      },
+      {
+        "id": "angularOrganizer.menu.fields",
+        "label": "Fields"
+      },
+      {
+        "id": "angularOrganizer.menu.decorators",
+        "label": "Decorators"
+      },
+      {
+        "id": "angularOrganizer.menu.accessors",
+        "label": "Accessors"
+      },
+      {
+        "id": "angularOrganizer.menu.methods",
+        "label": "Methods"
+      },
+      {
+        "id": "angularOrganizer.menu.cleanup",
+        "label": "Cleanup"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "submenu": "angularOrganizer.menu",
+          "when": "editorLangId == typescript",
+          "group": "1_modification@10"
+        }
+      ],
+      "explorer/context": [
+        {
+          "submenu": "angularOrganizer.menu",
+          "when": "resourceExtname == .ts",
+          "group": "7_modification@10"
+        }
+      ],
+      "angularOrganizer.menu": [
+        {
+          "command": "angularOrganizer.organizeAll",
+          "group": "0_main@10"
+        },
+        {
+          "command": "angularOrganizer.sortImports",
+          "group": "0_main@20"
+        },
+        {
+          "command": "angularOrganizer.reorder.allMembers",
+          "group": "0_main@30"
+        },
+        {
+          "submenu": "angularOrganizer.menu.fields",
+          "group": "1_groups@10"
+        },
+        {
+          "submenu": "angularOrganizer.menu.decorators",
+          "group": "1_groups@20"
+        },
+        {
+          "submenu": "angularOrganizer.menu.accessors",
+          "group": "1_groups@30"
+        },
+        {
+          "submenu": "angularOrganizer.menu.methods",
+          "group": "1_groups@40"
+        },
+        {
+          "submenu": "angularOrganizer.menu.cleanup",
+          "group": "1_groups@50"
+        }
+      ],
+      "angularOrganizer.menu.fields": [
+        {
+          "command": "angularOrganizer.reorder.constants",
+          "group": "a@10"
+        },
+        {
+          "command": "angularOrganizer.reorder.privateFields",
+          "group": "a@20"
+        },
+        {
+          "command": "angularOrganizer.reorder.protectedFields",
+          "group": "a@30"
+        }
+      ],
+      "angularOrganizer.menu.decorators": [
+        {
+          "command": "angularOrganizer.reorder.inputs",
+          "group": "a@10"
+        },
+        {
+          "command": "angularOrganizer.reorder.inputSetters",
+          "group": "a@20"
+        },
+        {
+          "command": "angularOrganizer.reorder.outputs",
+          "group": "a@30"
+        },
+        {
+          "command": "angularOrganizer.reorder.viewQueries",
+          "group": "a@40"
+        }
+      ],
+      "angularOrganizer.menu.accessors": [
+        {
+          "command": "angularOrganizer.reorder.accessors",
+          "group": "a@10"
+        }
+      ],
+      "angularOrganizer.menu.methods": [
+        {
+          "command": "angularOrganizer.reorder.publicMethods",
+          "group": "a@10"
+        },
+        {
+          "command": "angularOrganizer.reorder.protectedMethods",
+          "group": "a@20"
+        },
+        {
+          "command": "angularOrganizer.reorder.privateMethods",
+          "group": "a@30"
+        },
+        {
+          "command": "angularOrganizer.reorder.ctor",
+          "group": "b@10"
+        }
+      ],
+      "angularOrganizer.menu.cleanup": [
+        {
+          "command": "angularOrganizer.removeCommentsExceptRegions",
+          "group": "a@10"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "angularOrganizer.removeCommentsExceptRegions"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Angular Organizer",
+      "properties": {
+        "angularOrganizer.emitRegions": {
+          "type": "boolean",
+          "default": true,
+          "description": "When enabled, surround each member group with //#region ... //#endregion .... Turn off to omit regions."
+        },
+        "angularOrganizer.formatAfterOrganize": {
+          "type": "boolean",
+          "default": true,
+          "description": "After running an Angular Organizer command, also run the editor's Format Document."
+        },
+        "angularOrganizer.cleanupCommentsOnOrganize": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, remove all comments (except //#region and //#endregion lines) after running an Angular Organizer command."
+        },
+        "angularOrganizer.removeBlankLinesBeforeOrganize": {
+          "type": "boolean",
+          "default": true,
+          "description": "Before organizing, remove empty lines that are outside strings/template literals."
+        }
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devremoto/angular-organizer"
+  },
+  "bugs": {
+    "url": "https://github.com/devremoto/angular-organizer/issues"
+  },
+  "icon": "assets/icon.png",
+  "keywords": [
+    "angular",
+    "organize",
+    "formatter",
+    "imports",
+    "typescript"
+  ],
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "@types/vscode": "^1.90.0",
+    "ts-morph": "^22.0.0",
+    "typescript": "^5.4.0",
+    "vsce": "^2.15.0"
+  }
+}

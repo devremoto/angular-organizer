@@ -1,0 +1,6 @@
+# .gitignore
+node_modules
+out
+*.vsix
+.vscode/**/launch.json
+.DS_Store
