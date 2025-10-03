@@ -6,3 +6,4 @@ out
 .vscode/**/tasks.json
 .DS_Store
 private
+vscode
