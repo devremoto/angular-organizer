@@ -20,11 +20,35 @@
     "Formatters"
   ],
   "activationEvents": [
-    "onCommand:angularOrganizer.organize"
+    "onLanguage:typescript",
+    "onCommand:angularOrganizer.debug.selfcheck",
+    "onCommand:angularOrganizer.organizeAll",
+    "onCommand:angularOrganizer.sortImports",
+    "onCommand:angularOrganizer.reorder.allMembers",
+    "onCommand:angularOrganizer.reorder.constants",
+    "onCommand:angularOrganizer.reorder.privateFields",
+    "onCommand:angularOrganizer.reorder.protectedFields",
+    "onCommand:angularOrganizer.reorder.inputs",
+    "onCommand:angularOrganizer.reorder.inputSetters",
+    "onCommand:angularOrganizer.reorder.outputs",
+    "onCommand:angularOrganizer.reorder.viewQueries",
+    "onCommand:angularOrganizer.reorder.accessors",
+    "onCommand:angularOrganizer.reorder.ctor",
+    "onCommand:angularOrganizer.reorder.publicMethods",
+    "onCommand:angularOrganizer.reorder.protectedMethods",
+    "onCommand:angularOrganizer.reorder.privateMethods",
+    "onCommand:angularOrganizer.removeCommentsExceptRegions"
+  ],
+  "extensionKind": [
+    "workspace"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
+      {
+        "command": "angularOrganizer.debug.selfcheck",
+        "title": "Angular Organizer: Self Check"
+      },
       {
         "command": "angularOrganizer.organizeAll",
         "title": "Organize All"
@@ -275,11 +299,11 @@
     "typescript"
   ],
   "scripts": {
-    "compile": "tsc -p .",
-    "watch": "tsc -w -p .",
+    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --outfile=out/extension.js --external:vscode",
+    "compile": "npm run build",
+    "watch": "esbuild src/extension.ts --bundle --platform=node --format=cjs --outfile=out/extension.js --external:vscode --watch",
     "package": "vsce package",
-    "publish": "vsce publish",
-    "package-publish": "vsce package & vsce publish"
+    "publish": "vsce publish"
   },
   "dependencies": {
     "ts-morph": "^22.0.0",

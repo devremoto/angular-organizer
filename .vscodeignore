@@ -1,8 +1,10 @@
 .vscode/**
-out/test/**
 src/**
+test/**
+out/test/**
 **/*.map
-private/**
+node_modules/**
+
 private
 .github/**
     
