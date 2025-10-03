@@ -7,11 +7,10 @@
     "github": "https://github.com/devremoto",
     "twitter": "https://twitter.com/devremoto",
     "linkedin": "https://www.linkedin.com/in/adilsonpedro/"
-
   },
   "displayName": "Angular Organizer",
   "description": "Organize Angular files: imports + class member ordering (@Input, @Output, etc.)",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "AdilsondeAlmeidaPedro",
   "license": "MIT",
   "engines": {
