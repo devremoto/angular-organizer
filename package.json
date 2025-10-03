@@ -10,7 +10,7 @@
   },
   "displayName": "Angular Organizer",
   "description": "Organize Angular files: imports + class member ordering (@Input, @Output, etc.)",
-  "version": "0.0.8",
+  "version": "0.0.11",
   "publisher": "AdilsondeAlmeidaPedro",
   "license": "MIT",
   "engines": {
@@ -280,6 +280,11 @@
     "package": "vsce package",
     "publish": "vsce publish",
     "package-publish": "vsce package & vsce publish"
+  },
+  "dependencies": {
+    "ts-morph": "^22.0.0",
+    "typescript": "^5.4.0",
+    "vscode": "^1.90.0"
   },
   "devDependencies": {
     "@types/node": "^24.6.2",
