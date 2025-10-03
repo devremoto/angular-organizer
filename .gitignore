@@ -3,4 +3,6 @@ node_modules
 out
 *.vsix
 .vscode/**/launch.json
+.vscode/**/tasks.json
 .DS_Store
+private

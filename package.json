@@ -1,9 +1,18 @@
 {
   "name": "angular-organizer",
+  "author": {
+    "name": "Adilson de Almeida Pedro",
+    "email": "adilson@almeidapedro.com.br",
+    "url": "https://adilson.almeidapedro.com.br",
+    "github": "https://github.com/devremoto",
+    "twitter": "https://twitter.com/devremoto",
+    "linkedin": "https://www.linkedin.com/in/adilsonpedro/"
+
+  },
   "displayName": "Angular Organizer",
   "description": "Organize Angular files: imports + class member ordering (@Input, @Output, etc.)",
   "version": "0.0.3",
-  "publisher": "Adilson de Almeida Pedro",
+  "publisher": "AdilsondeAlmeidaPedro",
   "license": "MIT",
   "engines": {
     "vscode": "^1.90.0"
@@ -258,7 +267,7 @@
   "bugs": {
     "url": "https://github.com/devremoto/angular-organizer/issues"
   },
-  "icon": "assets/icon.png",
+  "icon": "assets/icon-256.png",
   "keywords": [
     "angular",
     "organize",
@@ -269,7 +278,9 @@
   "scripts": {
     "compile": "tsc -p .",
     "watch": "tsc -w -p .",
-    "package": "vsce package"
+    "package": "vsce package",
+    "publish": "vsce publish",
+    "package-publish": "vsce package & vsce publish"
   },
   "devDependencies": {
     "@types/node": "^24.6.2",
