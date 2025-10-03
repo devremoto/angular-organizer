@@ -2,7 +2,7 @@
   "name": "angular-organizer",
   "displayName": "Angular Organizer",
   "description": "Organize Angular files: imports + class member ordering (@Input, @Output, etc.)",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "Adilson de Almeida Pedro",
   "license": "MIT",
   "engines": {
