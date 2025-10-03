@@ -283,8 +283,7 @@
   },
   "dependencies": {
     "ts-morph": "^22.0.0",
-    "typescript": "^5.4.0",
-    "vscode": "^1.90.0"
+    "typescript": "^5.4.0"
   },
   "devDependencies": {
     "@types/node": "^24.6.2",
