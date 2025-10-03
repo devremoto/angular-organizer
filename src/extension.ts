@@ -1,33 +1,33 @@
 import * as vscode from 'vscode';
 import {
-    sortImportsOnly,
-    organizeAllText,
-    reorderAllMembers,
-    reorderConstantsOnly,
-    reorderPrivateFieldsOnly,
-    reorderProtectedFieldsOnly,
-    reorderInputsOnly,
-    reorderInputSettersOnly,
-    reorderOutputsOnly,
-    reorderViewQueriesOnly,
-    reorderAccessorsOnly,
-    reorderCtorOnly,
-    reorderPublicMethodsOnly,
-    reorderProtectedMethodsOnly,
-    reorderPrivateMethodsOnly,
-    OrganizeOptions,
-    removeCommentsExceptRegions,
-    removeBlankLinesOutsideStrings
+  sortImportsOnly,
+  organizeAllText,
+  reorderAllMembers,
+  reorderConstantsOnly,
+  reorderPrivateFieldsOnly,
+  reorderProtectedFieldsOnly,
+  reorderInputsOnly,
+  reorderInputSettersOnly,
+  reorderOutputsOnly,
+  reorderViewQueriesOnly,
+  reorderAccessorsOnly,
+  reorderCtorOnly,
+  reorderPublicMethodsOnly,
+  reorderProtectedMethodsOnly,
+  reorderPrivateMethodsOnly,
+  OrganizeOptions,
+  removeCommentsExceptRegions,
+  removeBlankLinesOutsideStrings
 } from './organize';
 
 function getUserOptions(): { organize: OrganizeOptions; formatAfter: boolean; cleanup: boolean; rmBlanksBefore: boolean } {
-    const cfg = vscode.workspace.getConfiguration('angularOrganizer');
-    return {
-        organize: { emitRegions: cfg.get<boolean>('emitRegions', true) },
-        formatAfter: cfg.get<boolean>('formatAfterOrganize', true),
-        cleanup: cfg.get<boolean>('cleanupCommentsOnOrganize', false),
-        rmBlanksBefore: cfg.get<boolean>('removeBlankLinesBeforeOrganize', true)
-    };
+  const cfg = vscode.workspace.getConfiguration('angularOrganizer');
+  return {
+    organize: { emitRegions: cfg.get<boolean>('emitRegions', true) },
+    formatAfter: cfg.get<boolean>('formatAfterOrganize', true),
+    cleanup: cfg.get<boolean>('cleanupCommentsOnOrganize', false),
+    rmBlanksBefore: cfg.get<boolean>('removeBlankLinesBeforeOrganize', true)
+  };
 }
 
 async function runOnDoc(
@@ -63,36 +63,35 @@ async function runOnDoc(
   }
 
   if (formatAfter) {
-    try { await vscode.commands.executeCommand('editor.action.formatDocument'); } catch {}
+    try { await vscode.commands.executeCommand('editor.action.formatDocument'); } catch { }
   }
 }
 
 export function activate(context: vscode.ExtensionContext) {
-    const cmd = (id: string, fn: (uri?: vscode.Uri) => any) =>
-        context.subscriptions.push(vscode.commands.registerCommand(id, fn));
+  const cmd = (id: string, fn: (uri?: vscode.Uri) => any) =>
+    context.subscriptions.push(vscode.commands.registerCommand(id, fn));
 
-    cmd('angularOrganizer.sortImports', (u) => runOnDoc(sortImportsOnly, u));
-    cmd('angularOrganizer.reorder.allMembers', (u) => runOnDoc(reorderAllMembers, u));
-    cmd('angularOrganizer.organizeAll', (u) => runOnDoc(organizeAllText, u));
+  cmd('angularOrganizer.sortImports', (u) => runOnDoc(sortImportsOnly, u));
+  cmd('angularOrganizer.reorder.allMembers', (u) => runOnDoc(reorderAllMembers, u));
+  cmd('angularOrganizer.organizeAll', (u) => runOnDoc(organizeAllText, u));
 
-    cmd('angularOrganizer.reorder.constants', (u) => runOnDoc(reorderConstantsOnly, u));
-    cmd('angularOrganizer.reorder.privateFields', (u) => runOnDoc(reorderPrivateFieldsOnly, u));
-    cmd('angularOrganizer.reorder.protectedFields', (u) => runOnDoc(reorderProtectedFieldsOnly, u));
+  cmd('angularOrganizer.reorder.constants', (u) => runOnDoc(reorderConstantsOnly, u));
+  cmd('angularOrganizer.reorder.privateFields', (u) => runOnDoc(reorderPrivateFieldsOnly, u));
+  cmd('angularOrganizer.reorder.protectedFields', (u) => runOnDoc(reorderProtectedFieldsOnly, u));
 
-    cmd('angularOrganizer.reorder.inputs', (u) => runOnDoc(reorderInputsOnly, u));
-    cmd('angularOrganizer.reorder.inputSetters', (u) => runOnDoc(reorderInputSettersOnly, u));
-    cmd('angularOrganizer.reorder.outputs', (u) => runOnDoc(reorderOutputsOnly, u));
-    cmd('angularOrganizer.reorder.viewQueries', (u) => runOnDoc(reorderViewQueriesOnly, u));
+  cmd('angularOrganizer.reorder.inputs', (u) => runOnDoc(reorderInputsOnly, u));
+  cmd('angularOrganizer.reorder.inputSetters', (u) => runOnDoc(reorderInputSettersOnly, u));
+  cmd('angularOrganizer.reorder.outputs', (u) => runOnDoc(reorderOutputsOnly, u));
+  cmd('angularOrganizer.reorder.viewQueries', (u) => runOnDoc(reorderViewQueriesOnly, u));
 
-    cmd('angularOrganizer.reorder.accessors', (u) => runOnDoc(reorderAccessorsOnly, u));
-    cmd('angularOrganizer.reorder.ctor', (u) => runOnDoc(reorderCtorOnly, u));
+  cmd('angularOrganizer.reorder.accessors', (u) => runOnDoc(reorderAccessorsOnly, u));
+  cmd('angularOrganizer.reorder.ctor', (u) => runOnDoc(reorderCtorOnly, u));
 
-    cmd('angularOrganizer.reorder.publicMethods', (u) => runOnDoc(reorderPublicMethodsOnly, u));
-    cmd('angularOrganizer.reorder.protectedMethods', (u) => runOnDoc(reorderProtectedMethodsOnly, u));
-    cmd('angularOrganizer.reorder.privateMethods', (u) => runOnDoc(reorderPrivateMethodsOnly, u));
-    cmd('angularOrganizer.removeCommentsExceptRegions', (u) => runOnDoc(removeCommentsExceptRegions, u));
+  cmd('angularOrganizer.reorder.publicMethods', (u) => runOnDoc(reorderPublicMethodsOnly, u));
+  cmd('angularOrganizer.reorder.protectedMethods', (u) => runOnDoc(reorderProtectedMethodsOnly, u));
+  cmd('angularOrganizer.reorder.privateMethods', (u) => runOnDoc(reorderPrivateMethodsOnly, u));
+  cmd('angularOrganizer.removeCommentsExceptRegions', (u) => runOnDoc(removeCommentsExceptRegions, u));
 
-    console.log('Angular Organizer is now active!');
 }
 
 export function deactivate() { }
