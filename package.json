@@ -10,7 +10,7 @@
   },
   "displayName": "Angular Organizer",
   "description": "Organize Angular files: imports + class member ordering (@Input, @Output, etc.)",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "publisher": "AdilsondeAlmeidaPedro",
   "license": "MIT",
   "engines": {
