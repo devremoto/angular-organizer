@@ -319,10 +319,11 @@
     "package": "vsce package",
     "publish": "vsce publish",
     "cleanup-vsix": "node scripts/cleanup-vsix.js",
-    "test": "npm run test:proximity && npm run test:ng-destroy && npm run test:comments",
+    "test": "npm run test:proximity && npm run test:ng-destroy && npm run test:comments && npm run test:hooks",
     "test:proximity": "node tests/test-proximity.mjs",
     "test:ng-destroy": "node tests/test-ng-destroy.mjs",
-    "test:comments": "node tests/test-comment-removal.mjs"
+    "test:comments": "node tests/test-comment-removal.mjs",
+    "test:hooks": "node tests/test-post-commit.mjs"
   },
   "dependencies": {
     "ts-morph": "^22.0.0",

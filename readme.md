@@ -264,6 +264,25 @@ See `.github/workflows/ci-cd.yml` to automatically:
 
 ---
 
+## Git Hooks (for contributors)
+
+The project includes automated git hooks to streamline development:
+
+### Pre-commit Hook
+- **Automatically removes old `.vsix` files**, keeping only the latest version
+- **Prevents repository bloat** from accumulated build artifacts
+- **Runs silently** and only shows output when cleanup occurs
+
+### Post-commit Hook
+- **Fetches latest changes** from the remote repository
+- **Pulls and rebases** if there are remote updates
+- **Keeps your local copy synchronized** with the remote
+- **Handles edge cases** like missing remotes or no upstream branches
+
+**Setup:** Run `scripts/setup-hooks.sh` (Linux/macOS) or `scripts/setup-hooks.bat` (Windows)
+
+---
+
 ## License
 
 MIT

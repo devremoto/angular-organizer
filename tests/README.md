@@ -44,6 +44,21 @@ node tests/test-comment-removal.mjs
 - Preservation of region comments (`//#region` and `//#endregion`)
 - Handling of inline comments
 
+### `test-post-commit.mjs`
+Tests the post-commit hook functionality and git command availability.
+
+**Usage:**
+```bash
+node tests/test-post-commit.mjs
+```
+
+**What it tests:**
+- Post-commit hook file existence and permissions
+- Git repository detection
+- Current branch detection
+- Remote repository configuration
+- Hook prerequisites
+
 ### `test-proximity.ts`
 TypeScript sample file with complex method relationships for manual testing in VS Code.
 
@@ -65,6 +80,9 @@ node tests/test-ng-destroy.mjs
 
 # Test comment removal
 node tests/test-comment-removal.mjs
+
+# Test git hooks
+node tests/test-post-commit.mjs
 
 # Run all tests
 npm test
