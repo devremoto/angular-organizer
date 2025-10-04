@@ -40,6 +40,7 @@ An opinionated VS Code extension that organizes **Angular + TypeScript** files.
 
 **Core**
 - **Angular Organizer: Organize All** — Sort imports + reorder all members.
+- **Angular Organizer: Organize All (with Method Proximity)** — Sort imports + reorder members with intelligent method grouping.
 - **Angular Organizer: Sort Imports** — Only organize imports.
 - **Angular Organizer: Reorder All Members** — Members only (no imports).
 
@@ -82,16 +83,71 @@ An opinionated VS Code extension that organizes **Angular + TypeScript** files.
 13. **Setters (non-@Input) · protected**
 14. **Setters (non-@Input) · private**
 15. **Constructor**
-16. **Angular lifecycle methods** — `ngOnChanges`, `ngOnInit`, `ngDoCheck`, `ngAfterContentInit`, `ngAfterContentChecked`, `ngAfterViewInit`, `ngAfterViewChecked`, `ngOnDestroy` (kept in this order)
+16. **Angular lifecycle methods** — `ngOnChanges`, `ngOnInit`, `ngDoCheck`, `ngAfterContentInit`, `ngAfterContentChecked`, `ngAfterViewInit`, `ngAfterViewChecked` (kept in this order)
 17. **Signal hooks** — class fields initialized with `effect(...)` or `computed(...)` (e.g. `_ = effect(() => …)`)
 18. **Methods · public** (non-`ng*`)
 19. **Methods · protected**
 20. **Methods · private**
+21. **`ngOnDestroy`** — always placed at the very end of the class ⭐
 
 Additional behavior:
 - **One blank line between consecutive methods**.
 - Optional **`//#region` wrappers** around each non-empty group.
 - Pre-existing region lines inside members are stripped to avoid duplicate `//#endregion`.
+- **`ngOnDestroy` is always last** regardless of other organization settings.
+
+---
+
+## Method Proximity Optimization
+
+When using **"Organize All (with Method Proximity)"** or enabling the `optimizeMethodProximity` setting, methods are intelligently grouped based on their usage relationships:
+
+### How it works:
+1. **Analyzes method calls** within the class to understand which methods call each other
+2. **Creates clusters** of related methods that form logical groups
+3. **Orders clusters** by size (larger, more connected groups first)
+4. **Within each cluster**, places calling methods before called methods when possible
+
+### Example:
+```typescript
+// Before: methods scattered throughout the class
+public handleSubmit() {
+  if (this.validateInput()) {
+    this.processData();
+  }
+}
+
+private formatDisplay() { /* ... */ }
+
+private validateInput() {
+  return this.checkRequired() && this.checkFormat();
+}
+
+private unrelatedMethod() { /* ... */ }
+
+private checkRequired() { /* ... */ }
+private checkFormat() { /* ... */ }
+private processData() {
+  this.transformData();
+  this.saveData();
+}
+
+// After: methods grouped by usage proximity
+private validateInput() { /* ... */ }     // ⭐ Validation cluster
+private checkFormat() { /* ... */ }       // ↳ called by validateInput
+private checkRequired() { /* ... */ }     // ↳ called by validateInput
+
+private processData() { /* ... */ }       // ⭐ Processing cluster  
+private saveData() { /* ... */ }          // ↳ called by processData
+private transformData() { /* ... */ }     // ↳ called by processData
+
+private formatDisplay() { /* ... */ }     // ⭐ Display cluster
+private unrelatedMethod() { /* ... */ }   // ⭐ Isolated methods
+```
+
+This makes the code **easier to read and maintain** by keeping related functionality together.
+
+**Note:** `ngOnDestroy` is always placed at the very end of the class, regardless of proximity optimization settings.
 
 ---
 
@@ -114,7 +170,8 @@ Open **Settings** (Ctrl/Cmd+,) → search **Angular Organizer**, or add to your 
   "angularOrganizer.emitRegions": true,
   "angularOrganizer.formatAfterOrganize": true,
   "angularOrganizer.cleanupCommentsOnOrganize": false,
-  "angularOrganizer.removeBlankLinesBeforeOrganize": true
+  "angularOrganizer.removeBlankLinesBeforeOrganize": true,
+  "angularOrganizer.optimizeMethodProximity": false
 }
 ```
 
@@ -122,6 +179,7 @@ Open **Settings** (Ctrl/Cmd+,) → search **Angular Organizer**, or add to your 
 - **`formatAfterOrganize`**: Run **Format Document** after the command.
 - **`cleanupCommentsOnOrganize`**: Remove all comments except region lines after organizing.
 - **`removeBlankLinesBeforeOrganize`**: Pre-pass that removes blank lines **outside** of strings/template literals before organizing.
+- **`optimizeMethodProximity`**: Enable intelligent method grouping based on usage relationships (experimental).
 
 **Formatter tip (optional):**
 ```json

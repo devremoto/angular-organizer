@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import {
   sortImportsOnly,
   organizeAllText,
+  organizeAllTextWithProximity,
   reorderAllMembers,
   reorderConstantsOnly,
   reorderPrivateFieldsOnly,
@@ -18,12 +19,15 @@ import {
   OrganizeOptions,
   removeCommentsExceptRegions,
   removeBlankLinesOutsideStrings
-} from './organize';
+} from './organize.js';
 
 function getUserOptions(): { organize: OrganizeOptions; formatAfter: boolean; cleanup: boolean; rmBlanksBefore: boolean } {
   const cfg = vscode.workspace.getConfiguration('angularOrganizer');
   return {
-    organize: { emitRegions: cfg.get<boolean>('emitRegions', true) },
+    organize: {
+      emitRegions: cfg.get<boolean>('emitRegions', true),
+      optimizeMethodProximity: cfg.get<boolean>('optimizeMethodProximity', false)
+    },
     formatAfter: cfg.get<boolean>('formatAfterOrganize', true),
     cleanup: cfg.get<boolean>('cleanupCommentsOnOrganize', false),
     rmBlanksBefore: cfg.get<boolean>('removeBlankLinesBeforeOrganize', true)
@@ -76,6 +80,7 @@ export function activate(context: vscode.ExtensionContext) {
     cmd('angularOrganizer.sortImports', (u) => runOnDoc(sortImportsOnly, u));
     cmd('angularOrganizer.reorder.allMembers', (u) => runOnDoc(reorderAllMembers, u));
     cmd('angularOrganizer.organizeAll', (u) => runOnDoc(organizeAllText, u));
+    cmd('angularOrganizer.organizeAllWithProximity', (u) => runOnDoc(organizeAllTextWithProximity, u));
 
     cmd('angularOrganizer.reorder.constants', (u) => runOnDoc(reorderConstantsOnly, u));
     cmd('angularOrganizer.reorder.privateFields', (u) => runOnDoc(reorderPrivateFieldsOnly, u));

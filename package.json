@@ -23,6 +23,7 @@
     "onLanguage:typescript",
     "onCommand:angularOrganizer.debug.selfcheck",
     "onCommand:angularOrganizer.organizeAll",
+    "onCommand:angularOrganizer.organizeAllWithProximity",
     "onCommand:angularOrganizer.sortImports",
     "onCommand:angularOrganizer.reorder.allMembers",
     "onCommand:angularOrganizer.reorder.constants",
@@ -52,6 +53,10 @@
       {
         "command": "angularOrganizer.organizeAll",
         "title": "Organize All"
+      },
+      {
+        "command": "angularOrganizer.organizeAllWithProximity",
+        "title": "Organize All (with Method Proximity)"
       },
       {
         "command": "angularOrganizer.sortImports",
@@ -159,6 +164,10 @@
         {
           "command": "angularOrganizer.organizeAll",
           "group": "0_main@10"
+        },
+        {
+          "command": "angularOrganizer.organizeAllWithProximity",
+          "group": "0_main@15"
         },
         {
           "command": "angularOrganizer.sortImports",
@@ -279,6 +288,11 @@
           "type": "boolean",
           "default": true,
           "description": "Before organizing, remove empty lines that are outside strings/template literals."
+        },
+        "angularOrganizer.optimizeMethodProximity": {
+          "type": "boolean",
+          "default": false,
+          "description": "When enabled, methods are organized based on usage proximity - methods that call each other are placed closer together."
         }
       }
     }
@@ -304,7 +318,11 @@
     "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --outfile=out/extension.js --external:vscode",
     "package": "vsce package",
     "publish": "vsce publish",
-    "cleanup-vsix": "node scripts/cleanup-vsix.js"
+    "cleanup-vsix": "node scripts/cleanup-vsix.js",
+    "test": "npm run test:proximity && npm run test:ng-destroy && npm run test:comments",
+    "test:proximity": "node tests/test-proximity.mjs",
+    "test:ng-destroy": "node tests/test-ng-destroy.mjs",
+    "test:comments": "node tests/test-comment-removal.mjs"
   },
   "dependencies": {
     "ts-morph": "^22.0.0",
