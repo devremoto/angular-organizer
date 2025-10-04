@@ -213,7 +213,9 @@ Open **Keyboard Shortcuts** → **Open Keyboard Shortcuts (JSON)** and add:
 3. **Set up git hooks** (optional but recommended):
    - **Windows**: `scripts\setup-hooks.bat`
    - **Linux/macOS**: `scripts/setup-hooks.sh`
-   - This sets up a pre-commit hook that automatically removes old `.vsix` files, keeping only the latest version
+   - This sets up git hooks that:
+     - **Pre-commit**: Automatically removes old `.vsix` files, keeping only the latest version
+     - **Post-commit**: Pulls latest changes from remote to keep the repository synchronized
 4. **F5** in VS Code → an **Extension Development Host** window opens
 5. Open a `.ts` file there → run **Angular Organizer: Organize All**
 
