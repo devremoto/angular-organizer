@@ -152,8 +152,12 @@ Open **Keyboard Shortcuts** → **Open Keyboard Shortcuts (JSON)** and add:
 
 1. `npm install`
 2. `npm run compile`
-3. **F5** in VS Code → an **Extension Development Host** window opens
-4. Open a `.ts` file there → run **Angular Organizer: Organize All**
+3. **Set up git hooks** (optional but recommended):
+   - **Windows**: `scripts\setup-hooks.bat`
+   - **Linux/macOS**: `scripts/setup-hooks.sh`
+   - This sets up a pre-commit hook that automatically removes old `.vsix` files, keeping only the latest version
+4. **F5** in VS Code → an **Extension Development Host** window opens
+5. Open a `.ts` file there → run **Angular Organizer: Organize All**
 
 **Debug tips (unbound breakpoints?)**
 - `tsconfig.json`:
