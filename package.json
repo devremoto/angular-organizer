@@ -312,6 +312,7 @@
   "devDependencies": {
     "@types/node": "^24.6.2",
     "@types/vscode": "^1.90.0",
+    "esbuild": "^0.25.10",
     "ts-morph": "^22.0.0",
     "typescript": "^5.4.0",
     "vsce": "^2.15.0"

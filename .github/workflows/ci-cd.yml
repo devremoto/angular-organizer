@@ -36,8 +36,8 @@ jobs:
       - name: Lint (optional)
         run: npm run lint --if-present
 
-      - name: Compile
-        run: npm run compile
+      - name: Build
+        run: npm run build
 
       # ---- Bump version & push tag back to main (avoid infinite loop via [skip ci]) ----
       - name: Configure Git
