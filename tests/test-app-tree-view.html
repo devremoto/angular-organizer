@@ -1,0 +1,13 @@
+<div class="container">
+    <h2>Tree Component</h2>
+
+    <app-tree-view
+        *ngIf="hasChildren(node) && isExpanded(node)"
+        [data]="node.children || []"
+        [level]="level + 1"
+        (nodeSelected)="nodeSelected.emit($event)"
+        (nodeDeleted)="nodeDeleted.emit($event)"
+        (nodeAdded)="nodeAdded.emit($event)"></app-tree-view>
+
+    <p>Footer content</p>
+</div>

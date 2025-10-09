@@ -1,4 +1,7 @@
 # Angular Organizer
+![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/AdilsondeAlmeidaPedro.angular-organizer?style=flat-square)
+![Visual Studio Marketplace Downloads](https://img.shields.io/visual-studio-marketplace/d/AdilsondeAlmeidaPedro.angular-organizer?style=flat-square)
+![Visual Studio Marketplace Rating](https://img.shields.io/visual-studio-marketplace/r/AdilsondeAlmeidaPedro.angular-organizer?style=flat-square)
 
 An opinionated VS Code extension that organizes **Angular + TypeScript** files.
 

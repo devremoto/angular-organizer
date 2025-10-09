@@ -627,3 +627,332 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
 
   cls.getSourceFile().replaceWithText(before + '\n' + pieces.join('\n') + after);
 }
+
+/* ========= Angular Template Control Flow Conversion ========= */
+
+/**
+ * Convert *ngFor directives to @for control flow
+ * Examples:
+ * *ngFor="let item of items" -> @for (item of items; track item) { }
+ * *ngFor="let item of items; let i = index" -> @for (item of items; track item; let i = $index) { }
+ * *ngFor="let item of items; trackBy: trackByFn" -> @for (item of items; track trackByFn(item)) { }
+ */
+function convertNgForToAtFor(templateContent: string): string {
+  // Pattern to match *ngFor with various syntax options
+  const ngForPattern = /\*ngFor\s*=\s*["']([^"']+)["']/g;
+
+  return templateContent.replace(ngForPattern, (match, forExpression: string) => {
+    // Parse the for expression
+    const parts = forExpression.split(';').map(p => p.trim());
+    const mainPart = parts[0]; // "let item of items"
+
+    // Extract variable and iterable from main part
+    const mainMatch = mainPart.match(/let\s+(\w+)\s+of\s+(.+)/);
+    if (!mainMatch) return match; // If we can't parse, leave unchanged
+
+    const [, variable, iterable] = mainMatch;
+
+    // Handle additional options
+    let trackExpression = variable; // default track by item
+    let indexVariable = '';
+
+    for (let i = 1; i < parts.length; i++) {
+      const part = parts[i].trim();
+
+      if (part.startsWith('let ') && part.includes('= index')) {
+        // Handle index variable: "let i = index"
+        const indexMatch = part.match(/let\s+(\w+)\s*=\s*index/);
+        if (indexMatch) {
+          indexVariable = indexMatch[1];
+        }
+      } else if (part.startsWith('trackBy:')) {
+        // Handle trackBy function: "trackBy: trackByFn"
+        const trackByMatch = part.match(/trackBy:\s*(.+)/);
+        if (trackByMatch) {
+          const trackByFn = trackByMatch[1].trim();
+          trackExpression = `${trackByFn}(${variable})`;
+        }
+      }
+    }
+
+    // Build the @for expression
+    let forResult = `@for (${variable} of ${iterable}; track ${trackExpression}`;
+    if (indexVariable) {
+      forResult += `; let ${indexVariable} = $index`;
+    }
+    forResult += ')';
+
+    return forResult;
+  });
+}
+
+/**
+ * Convert *ngIf directives to @if control flow
+ * Examples:
+ * *ngIf="condition" -> @if (condition) { }
+ * *ngIf="condition; else elseTemplate" -> @if (condition) { } @else { }
+ * *ngIf="condition as alias" -> @if (condition; as alias) { }
+ */
+function convertNgIfToAtIf(templateContent: string): string {
+  // Pattern to match *ngIf with various syntax options
+  const ngIfPattern = /\*ngIf\s*=\s*["']([^"']+)["']/g;
+
+  return templateContent.replace(ngIfPattern, (match, ifExpression: string) => {
+    // Handle "else" clause
+    if (ifExpression.includes(';') && ifExpression.includes('else')) {
+      const parts = ifExpression.split(';').map(p => p.trim());
+      const condition = parts[0];
+
+      // Check for "as alias" pattern
+      const asMatch = condition.match(/(.+)\s+as\s+(\w+)/);
+      if (asMatch) {
+        const [, actualCondition, alias] = asMatch;
+        return `@if (${actualCondition}; as ${alias})`;
+      }
+
+      return `@if (${condition})`;
+    }
+
+    // Handle "as alias" pattern without else
+    const asMatch = ifExpression.match(/(.+)\s+as\s+(\w+)/);
+    if (asMatch) {
+      const [, condition, alias] = asMatch;
+      return `@if (${condition}; as ${alias})`;
+    }
+
+    // Simple condition
+    return `@if (${ifExpression})`;
+  });
+}
+
+/**
+ * Convert *ngSwitch directives to @switch control flow
+ * Examples:
+ * [ngSwitch]="value" -> @switch (value) { }
+ * *ngSwitchCase="'case1'" -> @case ('case1') { }
+ * *ngSwitchDefault -> @default { }
+ */
+function convertNgSwitchToAtSwitch(templateContent: string): string {
+  // Convert [ngSwitch]
+  templateContent = templateContent.replace(
+    /\[ngSwitch\]\s*=\s*["']([^"']+)["']/g,
+    '@switch ($1)'
+  );
+
+  // Convert *ngSwitchCase - handle both simple values and quoted strings
+  templateContent = templateContent.replace(
+    /\*ngSwitchCase\s*=\s*"([^"]*)"/g,
+    '@case ($1)'
+  );
+  templateContent = templateContent.replace(
+    /\*ngSwitchCase\s*=\s*'([^']*)'/g,
+    '@case ($1)'
+  );
+
+  // Convert *ngSwitchDefault
+  templateContent = templateContent.replace(
+    /\*ngSwitchDefault/g,
+    '@default'
+  );
+
+  return templateContent;
+}
+
+/**
+ * Main function to convert all Angular structural directives to control flow syntax
+ */
+function convertAngularControlFlow(templateContent: string): string {
+  let result = templateContent;
+  result = convertNgForToAtFor(result);
+  result = convertNgIfToAtIf(result);
+  result = convertNgSwitchToAtSwitch(result);
+  return result;
+}
+
+/**
+ * Convert Angular template from structural directives to control flow syntax
+ * This function works on template files (.html) and inline templates in components
+ */
+export function convertToControlFlow(fileText: string, filePath: string): string {
+  // Check if this is a template file
+  if (filePath.endsWith('.html')) {
+    return convertAngularControlFlow(fileText);
+  }
+
+  // For TypeScript files, look for inline templates
+  if (filePath.endsWith('.ts')) {
+    // Pattern to match template properties in components
+    const templatePattern = /(template\s*:\s*)(["'`])([^]*?)\2/g;
+
+    return fileText.replace(templatePattern, (match, prefix, quote, templateContent) => {
+      const convertedTemplate = convertAngularControlFlow(templateContent);
+      return `${prefix}${quote}${convertedTemplate}${quote}`;
+    });
+  }
+
+  return fileText;
+}
+
+/**
+ * Convert Angular structural directive at a specific position
+ * This function is designed to work with cursor position or selection
+ */
+export function convertStructuralDirectiveAtPosition(
+  fileText: string,
+  filePath: string,
+  startLine: number,
+  endLine: number,
+  startChar: number,
+  endChar: number
+): string {
+  const lines = fileText.split('\n');
+
+  // For HTML files, work directly on the lines
+  if (filePath.endsWith('.html')) {
+    return convertLinesWithStructuralDirectives(lines, startLine, endLine, startChar, endChar);
+  }
+
+  // For TypeScript files, we need to check if we're inside a template
+  if (filePath.endsWith('.ts')) {
+    // Find if the cursor position is within a template
+    const templateInfo = findTemplateAtPosition(fileText, startLine, startChar);
+    if (templateInfo) {
+      return convertInlineTemplateAtPosition(fileText, templateInfo, startLine, endLine, startChar, endChar);
+    }
+  }
+
+  return fileText;
+}
+
+/**
+ * Find template boundaries at a given position in TypeScript file
+ */
+function findTemplateAtPosition(fileText: string, line: number, char: number): {
+  templateStart: number;
+  templateEnd: number;
+  templateContent: string;
+  prefix: string;
+  quote: string;
+} | null {
+  const lines = fileText.split('\n');
+  let currentPos = 0;
+  let targetPos = 0;
+
+  // Calculate the absolute position from line/char
+  for (let i = 0; i < line; i++) {
+    targetPos += lines[i].length + 1; // +1 for newline
+  }
+  targetPos += char;
+
+  // Look for template: patterns
+  const templatePattern = /(template\s*:\s*)(["'`])([^]*?)\2/g;
+  let match;
+
+  while ((match = templatePattern.exec(fileText)) !== null) {
+    const matchStart = match.index + match[1].length + 1; // Start of template content
+    const matchEnd = match.index + match[0].length - 1; // End of template content
+
+    if (targetPos >= matchStart && targetPos <= matchEnd) {
+      return {
+        templateStart: matchStart,
+        templateEnd: matchEnd,
+        templateContent: match[3],
+        prefix: match[1],
+        quote: match[2]
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Convert structural directives in specific lines of HTML template
+ */
+function convertLinesWithStructuralDirectives(
+  lines: string[],
+  startLine: number,
+  endLine: number,
+  startChar: number,
+  endChar: number
+): string {
+  const result = [...lines];
+
+  for (let i = startLine; i <= Math.min(endLine, lines.length - 1); i++) {
+    const line = lines[i];
+
+    // Check if this line contains structural directives
+    if (line.includes('*ngFor') || line.includes('*ngIf') || line.includes('*ngSwitch') ||
+      line.includes('[ngSwitch]') || line.includes('*ngSwitchCase') || line.includes('*ngSwitchDefault')) {
+
+      // If we're on the start line, only convert from startChar onwards
+      // If we're on the end line, only convert up to endChar
+      let lineToConvert = line;
+      let prefix = '';
+      let suffix = '';
+
+      if (i === startLine && i === endLine) {
+        // Same line selection
+        prefix = line.substring(0, startChar);
+        lineToConvert = line.substring(startChar, endChar);
+        suffix = line.substring(endChar);
+      } else if (i === startLine) {
+        prefix = line.substring(0, startChar);
+        lineToConvert = line.substring(startChar);
+      } else if (i === endLine) {
+        lineToConvert = line.substring(0, endChar);
+        suffix = line.substring(endChar);
+      }
+
+      const converted = convertAngularControlFlow(lineToConvert);
+      result[i] = prefix + converted + suffix;
+    }
+  }
+
+  return result.join('\n');
+}
+
+/**
+ * Convert structural directive in inline template at specific position
+ */
+function convertInlineTemplateAtPosition(
+  fileText: string,
+  templateInfo: { templateStart: number; templateEnd: number; templateContent: string; prefix: string; quote: string },
+  startLine: number,
+  endLine: number,
+  startChar: number,
+  endChar: number
+): string {
+  // Convert the template content
+  const templateLines = templateInfo.templateContent.split('\n');
+
+  // Calculate relative position within template
+  const fileLines = fileText.split('\n');
+  let templateStartLine = 0;
+  let pos = 0;
+
+  for (let i = 0; i < fileLines.length; i++) {
+    if (pos + fileLines[i].length >= templateInfo.templateStart) {
+      templateStartLine = i;
+      break;
+    }
+    pos += fileLines[i].length + 1;
+  }
+
+  const relativeStartLine = Math.max(0, startLine - templateStartLine);
+  const relativeEndLine = Math.min(templateLines.length - 1, endLine - templateStartLine);
+
+  const convertedTemplate = convertLinesWithStructuralDirectives(
+    templateLines,
+    relativeStartLine,
+    relativeEndLine,
+    startChar,
+    endChar
+  );
+
+  // Replace the template in the original file
+  const before = fileText.substring(0, templateInfo.templateStart - 1);
+  const after = fileText.substring(templateInfo.templateEnd + 1);
+
+  return before + templateInfo.quote + convertedTemplate + templateInfo.quote + after;
+}

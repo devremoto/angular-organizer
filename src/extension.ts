@@ -18,7 +18,9 @@ import {
   reorderPrivateMethodsOnly,
   OrganizeOptions,
   removeCommentsExceptRegions,
-  removeBlankLinesOutsideStrings
+  removeBlankLinesOutsideStrings,
+  convertToControlFlow,
+  convertStructuralDirectiveAtPosition
 } from './organize.js';
 
 function getUserOptions(): { organize: OrganizeOptions; formatAfter: boolean; cleanup: boolean; rmBlanksBefore: boolean } {
@@ -71,6 +73,60 @@ async function runOnDoc(
   }
 }
 
+async function convertStructuralDirectiveAtCursor() {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showErrorMessage('No active editor found.');
+    return;
+  }
+
+  const document = editor.document;
+  const selection = editor.selection;
+
+  // Get the selection or cursor position
+  const startPos = selection.start;
+  const endPos = selection.end;
+
+  // Get the text around cursor to check if it contains structural directives
+  const line = document.lineAt(startPos.line);
+  const lineText = line.text;
+
+  // Check if the current line or selection contains structural directives
+  const hasStructuralDirective = /\*ng(For|If|Switch)|(\[ngSwitch\])|(\*ngSwitchCase)|(\*ngSwitchDefault)/.test(lineText);
+
+  if (!hasStructuralDirective) {
+    vscode.window.showInformationMessage('No Angular structural directive found at cursor position.');
+    return;
+  }
+
+  const original = document.getText();
+
+  // Convert the structural directive at the specific position
+  const updated = convertStructuralDirectiveAtPosition(
+    original,
+    document.fileName,
+    startPos.line,
+    endPos.line,
+    startPos.character,
+    endPos.character
+  );
+
+  if (updated !== original) {
+    const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(original.length));
+    await editor.edit(e => e.replace(fullRange, updated));
+    vscode.window.showInformationMessage('Angular structural directive converted to control flow syntax.');
+  } else {
+    vscode.window.showInformationMessage('No changes were made.');
+  }
+
+  // Format the document after conversion
+  try {
+    await vscode.commands.executeCommand('editor.action.formatDocument');
+  } catch {
+    // Ignore formatting errors
+  }
+}
+
 export function activate(context: vscode.ExtensionContext) {
   try {
     console.log('Angular Organizer is now active!');
@@ -98,6 +154,8 @@ export function activate(context: vscode.ExtensionContext) {
     cmd('angularOrganizer.reorder.protectedMethods', (u) => runOnDoc(reorderProtectedMethodsOnly, u));
     cmd('angularOrganizer.reorder.privateMethods', (u) => runOnDoc(reorderPrivateMethodsOnly, u));
     cmd('angularOrganizer.removeCommentsExceptRegions', (u) => runOnDoc(removeCommentsExceptRegions, u));
+    cmd('angularOrganizer.convertToControlFlow', (u) => runOnDoc(convertToControlFlow, u));
+    cmd('angularOrganizer.convertStructuralDirectiveAtCursor', () => convertStructuralDirectiveAtCursor());
     console.log('Angular Organizer commands registered.');
   } catch (error) {
     console.error('Error during Angular Organizer activation:', error);

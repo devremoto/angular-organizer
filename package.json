@@ -38,12 +38,15 @@
     "onCommand:angularOrganizer.reorder.publicMethods",
     "onCommand:angularOrganizer.reorder.protectedMethods",
     "onCommand:angularOrganizer.reorder.privateMethods",
-    "onCommand:angularOrganizer.removeCommentsExceptRegions"
+    "onCommand:angularOrganizer.removeCommentsExceptRegions",
+    "onCommand:angularOrganizer.convertToControlFlow",
+    "onCommand:angularOrganizer.convertStructuralDirectiveAtCursor",
+    "onCommand:angularOrganizer.hasStructuralDirectiveAtCursor"
   ],
   "extensionKind": [
     "workspace"
   ],
-  "main": "./out/extension.js",
+  "main": "./out/extension-optimized.js",
   "contributes": {
     "commands": [
       {
@@ -117,6 +120,18 @@
       {
         "command": "angularOrganizer.removeCommentsExceptRegions",
         "title": "Angular Organizer: Remove Comments"
+      },
+      {
+        "command": "angularOrganizer.convertToControlFlow",
+        "title": "Convert to Angular Control Flow (@for, @if)"
+      },
+      {
+        "command": "angularOrganizer.convertStructuralDirectiveAtCursor",
+        "title": "Convert Structural Directive to Control Flow"
+      },
+      {
+        "command": "angularOrganizer.hasStructuralDirectiveAtCursor",
+        "title": "Check for Structural Directive at Cursor"
       }
     ],
     "submenus": [
@@ -143,6 +158,10 @@
       {
         "id": "angularOrganizer.menu.cleanup",
         "label": "Cleanup"
+      },
+      {
+        "id": "angularOrganizer.menu.refactoring",
+        "label": "Refactoring"
       }
     ],
     "menus": {
@@ -151,6 +170,11 @@
           "submenu": "angularOrganizer.menu",
           "when": "editorLangId == typescript",
           "group": "1_modification@10"
+        },
+        {
+          "command": "angularOrganizer.convertStructuralDirectiveAtCursor",
+          "when": "editorLangId == html || editorLangId == typescript",
+          "group": "1_modification@5"
         }
       ],
       "explorer/context": [
@@ -196,6 +220,10 @@
         {
           "submenu": "angularOrganizer.menu.cleanup",
           "group": "1_groups@50"
+        },
+        {
+          "submenu": "angularOrganizer.menu.refactoring",
+          "group": "1_groups@60"
         }
       ],
       "angularOrganizer.menu.fields": [
@@ -260,12 +288,39 @@
           "group": "a@10"
         }
       ],
+      "angularOrganizer.menu.refactoring": [
+        {
+          "command": "angularOrganizer.convertToControlFlow",
+          "group": "a@10"
+        },
+        {
+          "command": "angularOrganizer.convertStructuralDirectiveAtCursor",
+          "group": "a@20"
+        }
+      ],
       "commandPalette": [
         {
           "command": "angularOrganizer.removeCommentsExceptRegions"
+        },
+        {
+          "command": "angularOrganizer.convertToControlFlow",
+          "title": "Convert to Angular Control Flow (@for, @if)",
+          "group": "0_main@40"
+        },
+        {
+          "command": "angularOrganizer.convertStructuralDirectiveAtCursor",
+          "when": "editorLangId == html || editorLangId == typescript"
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "angularOrganizer.convertStructuralDirectiveAtCursor",
+        "key": "ctrl+shift+c",
+        "mac": "cmd+shift+c",
+        "when": "editorTextFocus && (editorLangId == html || editorLangId == typescript)"
+      }
+    ],
     "configuration": {
       "title": "Angular Organizer",
       "properties": {
@@ -315,15 +370,21 @@
   "scripts": {
     "compile": "tsc -p .",
     "watch": "tsc -w -p .",
-    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --outfile=out/extension.js --external:vscode",
+    "build": "npm run build:optimized && npm run build:organize",
+    "build:optimized": "esbuild src/extension-optimized.ts src/template-converter.ts src/text-utils.ts --bundle --platform=node --format=cjs --outdir=out --external:vscode --external:./organize.js",
+    "build:organize": "esbuild src/organize.ts --bundle --platform=node --format=cjs --outfile=out/organize.js --external:vscode",
+    "build:legacy": "esbuild src/extension.ts --bundle --platform=node --format=cjs --outfile=out/extension.js --external:vscode",
     "package": "vsce package",
     "publish": "vsce publish",
     "cleanup-vsix": "node scripts/cleanup-vsix.js",
-    "test": "npm run test:proximity && npm run test:ng-destroy && npm run test:comments && npm run test:hooks",
+    "test": "npm run test:optimized && npm run test:proximity && npm run test:ng-destroy && npm run test:comments && npm run test:hooks && npm run test:control-flow && npm run test:context-menu && npm run test:element-wrapping",
+    "test:optimized": "node tests/test-optimized-bundle.mjs",
     "test:proximity": "node tests/test-proximity.mjs",
     "test:ng-destroy": "node tests/test-ng-destroy.mjs",
     "test:comments": "node tests/test-comment-removal.mjs",
-    "test:hooks": "node tests/test-post-commit.mjs"
+    "test:hooks": "node tests/test-post-commit.mjs",
+    "test:control-flow": "node tests/test-control-flow-conversion.mjs",
+    "test:element-wrapping": "node tests/test-element-wrapping.mjs"
   },
   "dependencies": {
     "ts-morph": "^22.0.0",
