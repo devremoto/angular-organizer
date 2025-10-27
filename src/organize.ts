@@ -6,6 +6,9 @@ import * as ts from 'typescript';
 export type OrganizeOptions = {
   emitRegions?: boolean; // default true
   optimizeMethodProximity?: boolean; // default false - move methods closer to their usage
+  removeUnusedImports?: boolean; // default true - remove unused imports
+  removeUnusedVariables?: boolean; // default true - remove unused variables and methods
+  ensureBlankLineAfterImports?: boolean; // default true - ensure blank line after imports
 };
 
 /* ========= Public API (each command calls one of these) ========= */
@@ -13,26 +16,49 @@ export type OrganizeOptions = {
 // Imports only
 export function sortImportsOnly(fileText: string, filePath: string): string {
   const sf = createSource(fileText, filePath);
-  sortImports(sf);
-  return sf.getFullText();
-}
+  const options = withDefaults();
 
-// Members only (all buckets)
+  // Remove unused imports
+  if (options.removeUnusedImports) {
+    removeUnusedImports(sf);
+  }
+
+  // Sort imports (includes blank line after imports)
+  sortImports(sf);
+
+  return sf.getFullText();
+}// Members only (all buckets)
 export function reorderAllMembers(fileText: string, filePath: string, opts?: OrganizeOptions): string {
   const sf = createSource(fileText, filePath);
-  reorderAngularClasses(sf, withDefaults(opts));
+  const options = withDefaults(opts);
+
+  // Remove unused variables
+  if (options.removeUnusedVariables) {
+    removeUnusedVariables(sf);
+  }
+
+  // Reorder class members
+  reorderAngularClasses(sf, options);
+
   return sf.getFullText();
 }
 
 // Imports + members
 export function organizeAllText(fileText: string, filePath: string, opts?: OrganizeOptions): string {
   const sf = createSource(fileText, filePath);
-  sortImports(sf);
-  reorderAngularClasses(sf, withDefaults(opts));
-  return sf.getFullText();
-}
+  const options = withDefaults(opts);
 
-// Organize with method proximity optimization
+  // Remove unused imports and variables first
+  removeUnusedImportsAndVariables(sf, options);
+
+  // Sort imports (includes blank line after imports)
+  sortImports(sf);
+
+  // Reorder class members
+  reorderAngularClasses(sf, options);
+
+  return sf.getFullText();
+}// Organize with method proximity optimization
 export function organizeAllTextWithProximity(fileText: string, filePath: string, opts?: OrganizeOptions): string {
   const mergedOpts = { ...opts, optimizeMethodProximity: true };
   return organizeAllText(fileText, filePath, mergedOpts);
@@ -224,7 +250,10 @@ function reorderMembers(fileText: string, filePath: string, opts?: OrganizeOptio
 function withDefaults(opts?: OrganizeOptions): Required<OrganizeOptions> {
   return {
     emitRegions: opts?.emitRegions ?? true,
-    optimizeMethodProximity: opts?.optimizeMethodProximity ?? false
+    optimizeMethodProximity: opts?.optimizeMethodProximity ?? false,
+    removeUnusedImports: opts?.removeUnusedImports ?? true,
+    removeUnusedVariables: opts?.removeUnusedVariables ?? true,
+    ensureBlankLineAfterImports: opts?.ensureBlankLineAfterImports ?? true
   };
 }
 
@@ -234,6 +263,149 @@ function createSource(fileText: string, filePath: string): SourceFile {
 }
 
 /* ========= Safe import sorting (no trailing \n, no forgotten nodes) ========= */
+
+/**
+ * Remove unused imports and variables from the source file
+ */
+function removeUnusedImportsAndVariables(sf: SourceFile, opts: Required<OrganizeOptions>) {
+  if (opts.removeUnusedImports) {
+    removeUnusedImports(sf);
+  }
+  if (opts.removeUnusedVariables) {
+    removeUnusedVariables(sf);
+  }
+}
+
+/**
+ * Remove unused import declarations
+ */
+function removeUnusedImports(sf: SourceFile) {
+  const imports = sf.getImportDeclarations();
+  const sourceText = sf.getFullText();
+
+  for (const importDecl of imports) {
+    const namedImports = importDecl.getNamedImports();
+    const defaultImport = importDecl.getDefaultImport();
+    const namespaceImport = importDecl.getNamespaceImport();
+
+    // Check for unused named imports
+    if (namedImports.length > 0) {
+      const usedImports = namedImports.filter(namedImport => {
+        const name = namedImport.getName();
+        const alias = namedImport.getAliasNode()?.getText() || name;
+
+        // Create regex to find usage of this import
+        const usagePattern = new RegExp(`\\b${escapeRegex(alias)}\\b`, 'g');
+
+        // Count occurrences (should be more than 1 if used - 1 for the import itself)
+        const matches = sourceText.match(usagePattern) || [];
+        return matches.length > 1;
+      });
+
+      if (usedImports.length === 0 && !defaultImport && !namespaceImport) {
+        // Remove entire import if no named imports are used and no default/namespace
+        importDecl.remove();
+        continue;
+      } else if (usedImports.length < namedImports.length) {
+        // Remove only unused named imports
+        const unusedImports = namedImports.filter(namedImport => !usedImports.includes(namedImport));
+        unusedImports.forEach(unusedImport => unusedImport.remove());
+      }
+    }
+
+    // Check for unused default import
+    if (defaultImport && !namespaceImport && namedImports.length === 0) {
+      const defaultName = defaultImport.getText();
+      const usagePattern = new RegExp(`\\b${escapeRegex(defaultName)}\\b`, 'g');
+      const matches = sourceText.match(usagePattern) || [];
+
+      if (matches.length <= 1) {
+        importDecl.remove();
+      }
+    }
+
+    // Check for unused namespace import
+    if (namespaceImport && !defaultImport && namedImports.length === 0) {
+      const namespaceName = namespaceImport.getText();
+      const usagePattern = new RegExp(`\\b${escapeRegex(namespaceName)}\\b`, 'g');
+      const matches = sourceText.match(usagePattern) || [];
+
+      if (matches.length <= 1) {
+        importDecl.remove();
+      }
+    }
+  }
+}
+
+/**
+ * Remove unused variables and methods (private only for safety)
+ */
+function removeUnusedVariables(sf: SourceFile) {
+  const classes = sf.getClasses();
+
+  for (const cls of classes) {
+    const members = cls.getMembers();
+    const classText = cls.getText();
+
+    for (const member of members) {
+      // Only process property declarations and methods
+      if (!Node.isPropertyDeclaration(member) && !Node.isMethodDeclaration(member)) continue;
+
+      // Only remove private members to be safe
+      if (!member.hasModifier?.('private')) continue;
+
+      const memberName = member.getName?.();
+      if (!memberName) continue;
+
+      // Skip constructors and lifecycle methods
+      if (Node.isConstructorDeclaration(member)) continue;
+      if (Node.isMethodDeclaration(member) && /^ng[A-Z]/.test(memberName)) continue;
+
+      // Check if the member is used within the class
+      const usagePattern = new RegExp(`\\b${escapeRegex(memberName)}\\b`, 'g');
+      const matches = classText.match(usagePattern) || [];
+
+      // If only one match (the declaration itself), it's unused
+      if (matches.length <= 1) {
+        member.remove();
+      }
+    }
+  }
+}
+
+/**
+ * Escape special regex characters
+ */
+function escapeRegex(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Ensure blank line after imports
+ */
+function ensureBlankLineAfterImports(sf: SourceFile) {
+  const imports = sf.getImportDeclarations();
+  if (imports.length === 0) return;
+
+  const lastImport = imports[imports.length - 1];
+  const nextNode = lastImport.getNextSibling();
+
+  if (nextNode) {
+    const importEnd = lastImport.getEnd();
+    const nextStart = nextNode.getStart(true);
+    const textBetween = sf.getFullText().slice(importEnd, nextStart);
+
+    // Count newlines between import and next node
+    const newlineCount = (textBetween.match(/\n/g) || []).length;
+
+    if (newlineCount < 2) {
+      // Insert additional newline to ensure blank line
+      const additionalNewlines = '\n'.repeat(2 - newlineCount);
+      sf.insertText(importEnd, additionalNewlines);
+    }
+  }
+}
+
 function sortImports(sf: SourceFile) {
   const imports = sf.getImportDeclarations();
   if (imports.length === 0) return;
@@ -268,7 +440,7 @@ function sortImports(sf: SourceFile) {
   const start = imports[0].getStart(true);
   const end = imports[imports.length - 1].getEnd();
   const full = sf.getFullText();
-  const newFull = full.slice(0, start) + parts.join('\n') + full.slice(end); // NOTE: no extra '\n'
+  const newFull = full.slice(0, start) + parts.join('\n') + '\n' + full.slice(end); // Add extra \n for blank line
   sf.replaceWithText(newFull);
 }
 
@@ -429,30 +601,6 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
     if (!isField(m)) return false;
     const initText = m.getInitializer?.()?.getText?.() ?? '';
     return /\b(inject\s*\(|input\s*[<.(]|output\s*[<.(]|signal\s*[<.(])/.test(initText);
-  };
-
-  const isInjectField = (m: any) => {
-    if (!isField(m)) return false;
-    const initText = m.getInitializer?.()?.getText?.() ?? '';
-    return /\binject\s*\(/.test(initText);
-  };
-
-  const isInputSignal = (m: any) => {
-    if (!isField(m)) return false;
-    const initText = m.getInitializer?.()?.getText?.() ?? '';
-    return /\binput\s*[<.(]/.test(initText);
-  };
-
-  const isOutputSignal = (m: any) => {
-    if (!isField(m)) return false;
-    const initText = m.getInitializer?.()?.getText?.() ?? '';
-    return /\boutput\s*[<.(]/.test(initText);
-  };
-
-  const isSignalField = (m: any) => {
-    if (!isField(m)) return false;
-    const initText = m.getInitializer?.()?.getText?.() ?? '';
-    return /\bsignal\s*[<.(]/.test(initText);
   };
 
   // Access level
@@ -644,8 +792,62 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
 
   const memberTextSansRegions = (m: any) => stripRegionLines(m.getText());
 
-  const joinMembers = (arr: any[], ensureBlankBetweenMethods: boolean) => {
-    if (!ensureBlankBetweenMethods) return arr.map(memberTextSansRegions).join('\n');
+  const joinMembers = (arr: any[], ensureBlankBetweenMethods: boolean, bucketIndex?: number) => {
+    // Special handling for Signal APIs bucket (index 4) regardless of ensureBlankBetweenMethods
+    if (bucketIndex === 4) {
+      // Group members by API type
+      const apiGroups: { [key: string]: any[] } = {
+        inject: [],
+        input: [],
+        output: [],
+        signal: []
+      };
+
+      for (const member of arr) {
+        const initText = member.getInitializer?.()?.getText?.() ?? '';
+
+        if (/\binject\s*\(/.test(initText)) {
+          apiGroups.inject.push(member);
+        } else if (/\binput\s*[<.(]/.test(initText) || /\binput\.required\s*[<(]/.test(initText)) {
+          apiGroups.input.push(member);
+        } else if (/\boutput\s*[<.(]/.test(initText)) {
+          apiGroups.output.push(member);
+        } else if (/\bsignal\s*[<.(]/.test(initText)) {
+          apiGroups.signal.push(member);
+        }
+      }
+
+      // Sort each group alphabetically and create sections
+      const parts: string[] = [];
+      const groupOrder = ['inject', 'input', 'output', 'signal'];
+
+      for (let i = 0; i < groupOrder.length; i++) {
+        const groupName = groupOrder[i];
+        const group = apiGroups[groupName];
+
+        if (group.length > 0) {
+          // Add blank line before group (except for first group)
+          if (parts.length > 0) {
+            parts.push('');
+          }
+
+          // Sort group alphabetically and add members
+          const sortedGroup = group.sort((a, b) => {
+            const nameA = a.getName?.() ?? a.getText();
+            const nameB = b.getName?.() ?? b.getText();
+            return nameA.localeCompare(nameB);
+          });
+
+          for (const member of sortedGroup) {
+            parts.push(memberTextSansRegions(member));
+          }
+        }
+      }
+
+      return parts.join('\n');
+    }
+
+    if (!ensureBlankBetweenMethods) return arr.map(memberTextSansRegions).join('\n');    // Default behavior for other buckets
     const parts: string[] = [];
     for (let i = 0; i < arr.length; i++) {
       parts.push(memberTextSansRegions(arr[i]));
@@ -654,14 +856,12 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
       if (here && next) parts.push('');
     }
     return parts.join('\n');
-  };
-
-  const pieces: string[] = [];
+  }; const pieces: string[] = [];
   for (let i = 0; i < B.length; i++) {
     const arr = B[i];
     if (!arr.length) continue;
 
-    const content = joinMembers(arr, bucketIsMethody(i));
+    const content = joinMembers(arr, bucketIsMethody(i), i);
 
     if (opts.emitRegions) {
       pieces.push(`//#region ${LABELS[i]}`);
