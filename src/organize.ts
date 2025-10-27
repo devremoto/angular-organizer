@@ -424,6 +424,37 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
   const isViewQuery = (m: any) => isField(m) && hasDecoratorNamedAny(m, ['ViewChild', 'ViewChildren']);
   const isInputSetter = (m: any) => isSetter(m) && hasDecoratorNamedAny(m, ['Input']);
 
+  // Signal-based API detection
+  const isSignalBasedAPI = (m: any) => {
+    if (!isField(m)) return false;
+    const initText = m.getInitializer?.()?.getText?.() ?? '';
+    return /\b(inject\s*\(|input\s*[<.(]|output\s*[<.(]|signal\s*[<.(])/.test(initText);
+  };
+
+  const isInjectField = (m: any) => {
+    if (!isField(m)) return false;
+    const initText = m.getInitializer?.()?.getText?.() ?? '';
+    return /\binject\s*\(/.test(initText);
+  };
+
+  const isInputSignal = (m: any) => {
+    if (!isField(m)) return false;
+    const initText = m.getInitializer?.()?.getText?.() ?? '';
+    return /\binput\s*[<.(]/.test(initText);
+  };
+
+  const isOutputSignal = (m: any) => {
+    if (!isField(m)) return false;
+    const initText = m.getInitializer?.()?.getText?.() ?? '';
+    return /\boutput\s*[<.(]/.test(initText);
+  };
+
+  const isSignalField = (m: any) => {
+    if (!isField(m)) return false;
+    const initText = m.getInitializer?.()?.getText?.() ?? '';
+    return /\bsignal\s*[<.(]/.test(initText);
+  };
+
   // Access level
   const accessOf = (m: any): 'public' | 'protected' | 'private' => {
     if (m.hasModifier?.('private')) return 'private';
@@ -456,30 +487,32 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
      01 fields: private (plain)
      02 fields: protected (plain)
      03 fields: public (plain)
-     04 @Input properties
-     05 @Input setters
-     06 @Output properties
-     07 @ViewChild/@ViewChildren
-     08 getters: public
-     09 getters: protected
-     10 getters: private
-     11 setters (non-@Input): public
-     12 setters (non-@Input): protected
-     13 setters (non-@Input): private
-     14 constructor
-     15 Angular lifecycle methods (except ngOnDestroy)
-     16 Signal hooks (effect/computed)        <-- NEW (after ctor, with lifecycle block preceding it)
-     17 methods: public (non-ng)
-     18 methods: protected (non-ng)
-     19 methods: private (non-ng)
-     20 ngOnDestroy (always last)
+     04 Signal-based APIs (inject, input<>(), output<>(), signal<>())
+     05 @Input properties
+     06 @Input setters
+     07 @Output properties
+     08 @ViewChild/@ViewChildren
+     09 getters: public
+     10 getters: protected
+     11 getters: private
+     12 setters (non-@Input): public
+     13 setters (non-@Input): protected
+     14 setters (non-@Input): private
+     15 constructor
+     16 Angular lifecycle methods (except ngOnDestroy)
+     17 Signal hooks (effect/computed)        <-- NEW (after ctor, with lifecycle block preceding it)
+     18 methods: public (non-ng)
+     19 methods: protected (non-ng)
+     20 methods: private (non-ng)
+     21 ngOnDestroy (always last)
   */
-  const B: any[][] = Array.from({ length: 21 }, () => []);
+  const B: any[][] = Array.from({ length: 22 }, () => []);
   const LABELS: string[] = [
     'Constants',
     'Fields · private',
     'Fields · protected',
     'Fields · public',
+    'Signal APIs (inject/input/output/signal)',
     '@Input properties',
     '@Input setters',
     '@Output properties',
@@ -501,44 +534,45 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
 
   for (const m of members) {
     if (isReadonlyStatic(m)) { B[0].push(m); continue; }
-    if (isInputProp(m)) { B[4].push(m); continue; }
-    if (isInputSetter(m)) { B[5].push(m); continue; }
-    if (isOutputProp(m)) { B[6].push(m); continue; }
-    if (isViewQuery(m)) { B[7].push(m); continue; }
+    if (isSignalBasedAPI(m)) { B[4].push(m); continue; }
+    if (isInputProp(m)) { B[5].push(m); continue; }
+    if (isInputSetter(m)) { B[6].push(m); continue; }
+    if (isOutputProp(m)) { B[7].push(m); continue; }
+    if (isViewQuery(m)) { B[8].push(m); continue; }
 
     if (isGetter(m)) {
       const a = accessOf(m);
-      if (a === 'public') B[8].push(m);
-      else if (a === 'protected') B[9].push(m);
-      else B[10].push(m);
+      if (a === 'public') B[9].push(m);
+      else if (a === 'protected') B[10].push(m);
+      else B[11].push(m);
       continue;
     }
 
     if (isSetter(m)) {
       const a = accessOf(m);
-      if (a === 'public') B[11].push(m);
-      else if (a === 'protected') B[12].push(m);
-      else B[13].push(m);
+      if (a === 'public') B[12].push(m);
+      else if (a === 'protected') B[13].push(m);
+      else B[14].push(m);
       continue;
     }
 
-    if (isCtor(m)) { B[14].push(m); continue; }
+    if (isCtor(m)) { B[15].push(m); continue; }
     if (isMethod(m) && isNgLifecycle(m)) {
       const methodName = m.getName?.() ?? '';
       if (methodName === 'ngOnDestroy') {
-        B[20].push(m); // ngOnDestroy goes to the special last bucket
+        B[21].push(m); // ngOnDestroy goes to the special last bucket
       } else {
-        B[15].push(m); // Other lifecycle methods go to the regular lifecycle bucket
+        B[16].push(m); // Other lifecycle methods go to the regular lifecycle bucket
       }
       continue;
     }
-    if (isSignalHookField(m)) { B[16].push(m); continue; }
+    if (isSignalHookField(m)) { B[17].push(m); continue; }
 
     if (isMethod(m)) {
       const a = accessOf(m);
-      if (a === 'public') B[17].push(m);
-      else if (a === 'protected') B[18].push(m);
-      else B[19].push(m);
+      if (a === 'public') B[18].push(m);
+      else if (a === 'protected') B[19].push(m);
+      else B[20].push(m);
       continue;
     }
 
@@ -555,7 +589,23 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
   const alphaByName = (a: any, b: any) => (a.getName?.() ?? '').localeCompare(b.getName?.() ?? '');
 
   for (let i = 0; i < B.length; i++) {
-    if (i === 15) {
+    if (i === 4) {
+      // Signal-based APIs - sort by type priority: inject, input, output, signal
+      B[i].sort((a: any, b: any) => {
+        const aInit = a.getInitializer?.()?.getText?.() ?? '';
+        const bInit = b.getInitializer?.()?.getText?.() ?? '';
+        const aPriority = /\binject\s*\(/.test(aInit) ? 0 :
+          /\binput\s*[<.(]/.test(aInit) ? 1 :
+            /\boutput\s*[<.(]/.test(aInit) ? 2 :
+              /\bsignal\s*[<.(]/.test(aInit) ? 3 : 4;
+        const bPriority = /\binject\s*\(/.test(bInit) ? 0 :
+          /\binput\s*[<.(]/.test(bInit) ? 1 :
+            /\boutput\s*[<.(]/.test(bInit) ? 2 :
+              /\bsignal\s*[<.(]/.test(bInit) ? 3 : 4;
+        if (aPriority !== bPriority) return aPriority - bPriority;
+        return (a.getName?.() ?? '').localeCompare(b.getName?.() ?? '');
+      });
+    } else if (i === 16) {
       // Angular lifecycle methods - keep specific order (excluding ngOnDestroy)
       B[i].sort((a: any, b: any) => {
         const an = a.getName?.() ?? '';
@@ -567,10 +617,10 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
         if (bi !== -1) return 1;
         return an.localeCompare(bn);
       });
-    } else if (i === 20) {
+    } else if (i === 21) {
       // ngOnDestroy bucket - should only have one method, but sort just in case
       B[i].sort(alphaByName);
-    } else if (opts.optimizeMethodProximity && (i >= 17 && i <= 19)) {
+    } else if (opts.optimizeMethodProximity && (i >= 18 && i <= 20)) {
       // For method buckets (public, protected, private), sort by usage proximity
       B[i] = sortMethodsByProximity(B[i], members);
     } else {
@@ -590,7 +640,7 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
 
 
   const isMethodNode = (n: any) => Node.isMethodDeclaration(n) || Node.isConstructorDeclaration(n);
-  const bucketIsMethody = (idx: number) => idx === 15 || idx === 16 || (idx >= 17 && idx <= 20);
+  const bucketIsMethody = (idx: number) => idx === 15 || idx === 16 || idx === 17 || (idx >= 18 && idx <= 21);
 
   const memberTextSansRegions = (m: any) => stripRegionLines(m.getText());
 
