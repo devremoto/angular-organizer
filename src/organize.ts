@@ -45,19 +45,25 @@ export function reorderAllMembers(fileText: string, filePath: string, opts?: Org
 
 // Imports + members
 export function organizeAllText(fileText: string, filePath: string, opts?: OrganizeOptions): string {
-  const sf = createSource(fileText, filePath);
-  const options = withDefaults(opts);
+  try {
+    const sf = createSource(fileText, filePath);
+    const options = withDefaults(opts);
 
-  // Remove unused imports and variables first
-  removeUnusedImportsAndVariables(sf, options);
+    // Remove unused imports and variables first
+    removeUnusedImportsAndVariables(sf, options);
 
-  // Sort imports (includes blank line after imports)
-  sortImports(sf);
+    // Sort imports (includes blank line after imports)
+    sortImports(sf);
 
-  // Reorder class members
-  reorderAngularClasses(sf, options);
+    // Reorder class members
+    reorderAngularClasses(sf, options);
 
-  return sf.getFullText();
+    return sf.getFullText();
+  } catch (error) {
+    console.error('Error in organizeAllText:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to organize text: ${errorMessage}`);
+  }
 }// Organize with method proximity optimization
 export function organizeAllTextWithProximity(fileText: string, filePath: string, opts?: OrganizeOptions): string {
   const mergedOpts = { ...opts, optimizeMethodProximity: true };
@@ -258,11 +264,21 @@ function withDefaults(opts?: OrganizeOptions): Required<OrganizeOptions> {
 }
 
 function createSource(fileText: string, filePath: string): SourceFile {
-  const project = new Project({ useInMemoryFileSystem: true, skipAddingFilesFromTsConfig: true });
-  return project.createSourceFile(filePath, fileText, { overwrite: true });
-}
-
-/* ========= Safe import sorting (no trailing \n, no forgotten nodes) ========= */
+  try {
+    const project = new Project({
+      useInMemoryFileSystem: true,
+      skipAddingFilesFromTsConfig: true,
+      compilerOptions: {
+        allowJs: true
+      }
+    });
+    return project.createSourceFile(filePath, fileText, { overwrite: true });
+  } catch (error) {
+    console.error('Error creating source file:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to parse TypeScript file: ${errorMessage}`);
+  }
+}/* ========= Safe import sorting (no trailing \n, no forgotten nodes) ========= */
 
 /**
  * Remove unused imports and variables from the source file
@@ -587,6 +603,10 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
   const isCtor = (m: any) => Node.isConstructorDeclaration(m);
   const isMethod = (m: any) => Node.isMethodDeclaration(m);
 
+  // Abstract members
+  const isAbstractProperty = (m: any) => Node.isPropertyDeclaration(m) && m.hasModifier?.('abstract');
+  const isAbstractMethod = (m: any) => Node.isMethodDeclaration(m) && m.hasModifier?.('abstract');
+
   const hasDecoratorNamedAny = (m: any, names: string[]) =>
     !!m.getDecorators?.().some((d: any) => names.includes(d.getName?.()));
 
@@ -654,9 +674,10 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
      20 methods: private (non-ng)
      21 ngOnDestroy (always last)
   */
-  const B: any[][] = Array.from({ length: 22 }, () => []);
+  const B: any[][] = Array.from({ length: 24 }, () => []);
   const LABELS: string[] = [
     'Constants',
+    'Abstract properties',
     'Fields · private',
     'Fields · protected',
     'Fields · public',
@@ -672,6 +693,7 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
     'Setters (non-@Input) · protected',
     'Setters (non-@Input) · private',
     'Constructor',
+    'Abstract methods',
     'Angular lifecycle',
     'Signal hooks (effect/computed)',
     'Methods · public',
@@ -682,53 +704,55 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
 
   for (const m of members) {
     if (isReadonlyStatic(m)) { B[0].push(m); continue; }
-    if (isSignalBasedAPI(m)) { B[4].push(m); continue; }
-    if (isInputProp(m)) { B[5].push(m); continue; }
-    if (isInputSetter(m)) { B[6].push(m); continue; }
-    if (isOutputProp(m)) { B[7].push(m); continue; }
-    if (isViewQuery(m)) { B[8].push(m); continue; }
+    if (isAbstractProperty(m)) { B[1].push(m); continue; }
+    if (isSignalBasedAPI(m)) { B[5].push(m); continue; }
+    if (isInputProp(m)) { B[6].push(m); continue; }
+    if (isInputSetter(m)) { B[7].push(m); continue; }
+    if (isOutputProp(m)) { B[8].push(m); continue; }
+    if (isViewQuery(m)) { B[9].push(m); continue; }
 
     if (isGetter(m)) {
       const a = accessOf(m);
-      if (a === 'public') B[9].push(m);
-      else if (a === 'protected') B[10].push(m);
-      else B[11].push(m);
+      if (a === 'public') B[10].push(m);
+      else if (a === 'protected') B[11].push(m);
+      else B[12].push(m);
       continue;
     }
 
     if (isSetter(m)) {
       const a = accessOf(m);
-      if (a === 'public') B[12].push(m);
-      else if (a === 'protected') B[13].push(m);
-      else B[14].push(m);
+      if (a === 'public') B[13].push(m);
+      else if (a === 'protected') B[14].push(m);
+      else B[15].push(m);
       continue;
     }
 
-    if (isCtor(m)) { B[15].push(m); continue; }
+    if (isCtor(m)) { B[16].push(m); continue; }
+    if (isAbstractMethod(m)) { B[17].push(m); continue; }
     if (isMethod(m) && isNgLifecycle(m)) {
       const methodName = m.getName?.() ?? '';
       if (methodName === 'ngOnDestroy') {
-        B[21].push(m); // ngOnDestroy goes to the special last bucket
+        B[23].push(m); // ngOnDestroy goes to the special last bucket
       } else {
-        B[16].push(m); // Other lifecycle methods go to the regular lifecycle bucket
+        B[18].push(m); // Other lifecycle methods go to the regular lifecycle bucket
       }
       continue;
     }
-    if (isSignalHookField(m)) { B[17].push(m); continue; }
+    if (isSignalHookField(m)) { B[19].push(m); continue; }
 
     if (isMethod(m)) {
       const a = accessOf(m);
-      if (a === 'public') B[18].push(m);
-      else if (a === 'protected') B[19].push(m);
-      else B[20].push(m);
+      if (a === 'public') B[20].push(m);
+      else if (a === 'protected') B[21].push(m);
+      else B[22].push(m);
       continue;
     }
 
     if (isField(m)) {
       const a = accessOf(m);
-      if (a === 'private') B[1].push(m);
-      else if (a === 'protected') B[2].push(m);
-      else B[3].push(m);
+      if (a === 'private') B[2].push(m);
+      else if (a === 'protected') B[3].push(m);
+      else B[4].push(m);
       continue;
     }
   }
@@ -737,7 +761,7 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
   const alphaByName = (a: any, b: any) => (a.getName?.() ?? '').localeCompare(b.getName?.() ?? '');
 
   for (let i = 0; i < B.length; i++) {
-    if (i === 4) {
+    if (i === 5) {
       // Signal-based APIs - sort by type priority: inject, input, output, signal
       B[i].sort((a: any, b: any) => {
         const aInit = a.getInitializer?.()?.getText?.() ?? '';
@@ -788,13 +812,13 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
 
 
   const isMethodNode = (n: any) => Node.isMethodDeclaration(n) || Node.isConstructorDeclaration(n);
-  const bucketIsMethody = (idx: number) => idx === 15 || idx === 16 || idx === 17 || (idx >= 18 && idx <= 21);
+  const bucketIsMethody = (idx: number) => idx === 16 || idx === 17 || idx === 18 || idx === 19 || (idx >= 20 && idx <= 23);
 
   const memberTextSansRegions = (m: any) => stripRegionLines(m.getText());
 
   const joinMembers = (arr: any[], ensureBlankBetweenMethods: boolean, bucketIndex?: number) => {
-    // Special handling for Signal APIs bucket (index 4) regardless of ensureBlankBetweenMethods
-    if (bucketIndex === 4) {
+    // Special handling for Signal APIs bucket (index 5) regardless of ensureBlankBetweenMethods
+    if (bucketIndex === 5) {
       // Group members by API type
       const apiGroups: { [key: string]: any[] } = {
         inject: [],

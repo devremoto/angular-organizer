@@ -6,12 +6,18 @@ import { removeCommentsExceptRegions, removeBlankLinesOutsideStrings } from './t
 export type OrganizeOptions = {
     emitRegions?: boolean;
     optimizeMethodProximity?: boolean;
+    removeUnusedImports?: boolean;
+    removeUnusedVariables?: boolean;
+    ensureBlankLineAfterImports?: boolean;
 }; function getUserOptions(): { organize: OrganizeOptions; formatAfter: boolean; cleanup: boolean; rmBlanksBefore: boolean } {
     const cfg = vscode.workspace.getConfiguration('angularOrganizer');
     return {
         organize: {
             emitRegions: cfg.get<boolean>('emitRegions', true),
-            optimizeMethodProximity: cfg.get<boolean>('optimizeMethodProximity', false)
+            optimizeMethodProximity: cfg.get<boolean>('optimizeMethodProximity', false),
+            removeUnusedImports: cfg.get<boolean>('removeUnusedImports', true),
+            removeUnusedVariables: cfg.get<boolean>('removeUnusedVariables', true),
+            ensureBlankLineAfterImports: cfg.get<boolean>('ensureBlankLineAfterImports', true)
         },
         formatAfter: cfg.get<boolean>('formatAfterOrganize', true),
         cleanup: cfg.get<boolean>('cleanupCommentsOnOrganize', false),

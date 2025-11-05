@@ -348,6 +348,21 @@
           "type": "boolean",
           "default": false,
           "description": "When enabled, methods are organized based on usage proximity - methods that call each other are placed closer together."
+        },
+        "angularOrganizer.removeUnusedImports": {
+          "type": "boolean",
+          "default": true,
+          "description": "When enabled, automatically remove unused imports during organization."
+        },
+        "angularOrganizer.removeUnusedVariables": {
+          "type": "boolean",
+          "default": true,
+          "description": "When enabled, automatically remove unused private variables and methods during organization."
+        },
+        "angularOrganizer.ensureBlankLineAfterImports": {
+          "type": "boolean",
+          "default": true,
+          "description": "When enabled, ensure there is a blank line after the import statements."
         }
       }
     }

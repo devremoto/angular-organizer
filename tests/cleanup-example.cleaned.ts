@@ -17,8 +17,11 @@ private usedPrivateField = 'I am used';
 
 //#region Signal APIs (inject/input/output/signal)
 private httpClient = inject(HttpClient);
+
 userName = input<string>('default');
+
 nameChange = output<string>();
+
 count = signal<number>(0);
 //#endregion Signal APIs (inject/input/output/signal)
 
