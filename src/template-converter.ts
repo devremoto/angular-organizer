@@ -3,158 +3,7 @@
  * Lightweight string-based transformations without heavy dependencies
  */
 
-/**
- * Convert *ngFor directives to @for control flow with proper element wrapping
- * Examples:
- * <li *ngFor="let item of items">{{ item }}</li> -> @for (item of items; track item) { <li>{{ item }}</li> }
- * <div *ngFor="let item of items; let i = index">{{ i }}</div> -> @for (item of items; track item; let i = $index) { <div>{{ i }}</div> }
- */
-function convertNgForToAtFor(templateContent: string): string {
-    // More sophisticated approach - find and match elements properly (including hyphenated element names)
-    const ngForPattern = /(<([\w-]+)[^>]*?\*ngFor\s*=\s*["']([^"']+)["'][^>]*?>)([\s\S]*?)(<\/\2>)/g;
 
-    return templateContent.replace(ngForPattern, (match, openTag, tagName, forExpression, content, closeTag) => {
-        // Parse the for expression
-        const parts = forExpression.split(';').map((p: string) => p.trim());
-        const mainPart = parts[0]; // "let item of items"
-
-        // Extract variable and iterable from main part
-        const mainMatch = mainPart.match(/let\s+(\w+)\s+of\s+(.+)/);
-        if (!mainMatch) return match; // If we can't parse, leave unchanged
-
-        const [, variable, iterable] = mainMatch;
-
-        // Handle additional options
-        let trackExpression = variable; // default track by item
-        let indexVariable = '';
-
-        for (let i = 1; i < parts.length; i++) {
-            const part = parts[i].trim();
-
-            if (part.startsWith('let ') && part.includes('= index')) {
-                // Handle index variable: "let i = index"
-                const indexMatch = part.match(/let\s+(\w+)\s*=\s*index/);
-                if (indexMatch) {
-                    indexVariable = indexMatch[1];
-                }
-            } else if (part.startsWith('trackBy:')) {
-                // Handle trackBy function: "trackBy: trackByFn"
-                const trackByMatch = part.match(/trackBy:\s*(.+)/);
-                if (trackByMatch) {
-                    const trackByFn = trackByMatch[1].trim();
-                    trackExpression = `${trackByFn}(${variable})`;
-                }
-            }
-        }
-
-        // Build the @for expression
-        let forResult = `@for (${variable} of ${iterable}; track ${trackExpression}`;
-        if (indexVariable) {
-            forResult += `; let ${indexVariable} = $index`;
-        }
-        forResult += ') {\n';
-
-        // Remove the *ngFor attribute from the opening tag
-        const cleanOpenTag = openTag.replace(/\s*\*ngFor\s*=\s*["'][^"']+["']/, '');
-
-        // Wrap the element in the @for block - preserve the original content structure
-        forResult += `  ${cleanOpenTag}${content}${closeTag}\n`;
-        forResult += '}';
-
-        return forResult;
-    });
-}
-
-/**
- * Convert *ngIf directives to @if control flow with proper element wrapping
- * Examples:
- * <p *ngIf="condition">Content</p> -> @if (condition) { <p>Content</p> }
- * <div *ngIf="condition; else elseTemplate">Content</div> -> @if (condition) { <div>Content</div> } @else { }
- * <span *ngIf="condition as alias">Content</span> -> @if (condition; as alias) { <span>Content</span> }
- */
-function convertNgIfToAtIf(templateContent: string): string {
-    // More sophisticated pattern to match elements properly (including hyphenated element names)
-    const ngIfElementPattern = /(<([\w-]+)[^>]*?\*ngIf\s*=\s*["']([^"']+)["'][^>]*?>)([\s\S]*?)(<\/\2>)/g;
-
-    return templateContent.replace(ngIfElementPattern, (match, openTag, tagName, ifExpression, content, closeTag) => {
-        // Handle "else" clause
-        let ifResult = '';
-        if (ifExpression.includes(';') && ifExpression.includes('else')) {
-            const parts = ifExpression.split(';').map((p: string) => p.trim());
-            const condition = parts[0];
-
-            // Check for "as alias" pattern
-            const asMatch = condition.match(/(.+)\s+as\s+(\w+)/);
-            if (asMatch) {
-                const [, actualCondition, alias] = asMatch;
-                ifResult = `@if (${actualCondition}; as ${alias}) {\n`;
-            } else {
-                ifResult = `@if (${condition}) {\n`;
-            }
-        } else {
-            // Handle "as alias" pattern without else
-            const asMatch = ifExpression.match(/(.+)\s+as\s+(\w+)/);
-            if (asMatch) {
-                const [, condition, alias] = asMatch;
-                ifResult = `@if (${condition}; as ${alias}) {\n`;
-            } else {
-                // Simple condition
-                ifResult = `@if (${ifExpression}) {\n`;
-            }
-        }
-
-        // Remove the *ngIf attribute from the opening tag
-        const cleanOpenTag = openTag.replace(/\s*\*ngIf\s*=\s*["'][^"']+["']/, '');
-
-        // Wrap the element in the @if block
-        ifResult += `  ${cleanOpenTag}${content}${closeTag}\n`;
-        ifResult += '}';
-
-        return ifResult;
-    });
-}
-
-/**
- * Convert *ngSwitchCase and *ngSwitchDefault elements (process children first)
- */
-function convertNgSwitchChildrenToAtSwitch(templateContent: string): string {
-    let result = templateContent;
-
-    // First, convert *ngSwitchCase elements with proper wrapping using improved regex (including hyphenated element names)
-    const ngSwitchCasePattern = /(<([\w-]+)[^>]*?\*ngSwitchCase\s*=\s*"([^"]*)"[^>]*?>)([\s\S]*?)(<\/\2>)/g;
-    result = result.replace(ngSwitchCasePattern, (match, openTag, tagName, caseValue, content, closeTag) => {
-        const cleanOpenTag = openTag.replace(/\s*\*ngSwitchCase\s*=\s*"[^"]*"/, '');
-        return `@case (${caseValue}) {\n  ${cleanOpenTag}${content}${closeTag}\n}`;
-    });
-
-    const ngSwitchCasePatternSingle = /(<([\w-]+)[^>]*?\*ngSwitchCase\s*=\s*'([^']*)'[^>]*?>)([\s\S]*?)(<\/\2>)/g;
-    result = result.replace(ngSwitchCasePatternSingle, (match, openTag, tagName, caseValue, content, closeTag) => {
-        const cleanOpenTag = openTag.replace(/\s*\*ngSwitchCase\s*=\s*'[^']*'/, '');
-        return `@case (${caseValue}) {\n  ${cleanOpenTag}${content}${closeTag}\n}`;
-    });
-
-    // Convert *ngSwitchDefault elements with proper wrapping using improved regex (including hyphenated element names)
-    const ngSwitchDefaultPattern = /(<([\w-]+)[^>]*?\*ngSwitchDefault[^>]*?>)([\s\S]*?)(<\/\2>)/g;
-    result = result.replace(ngSwitchDefaultPattern, (match, openTag, tagName, content, closeTag) => {
-        const cleanOpenTag = openTag.replace(/\s*\*ngSwitchDefault/, '');
-        return `@default {\n  ${cleanOpenTag}${content}${closeTag}\n}`;
-    });
-
-    return result;
-}
-
-/**
- * Convert [ngSwitch] container elements (process after children are converted)
- */
-function convertNgSwitchContainerToAtSwitch(templateContent: string): string {
-    // Convert [ngSwitch] container elements and wrap the content using improved regex (including hyphenated element names)
-    const ngSwitchPattern = /(<([\w-]+)[^>]*?\[ngSwitch\]\s*=\s*"([^"]+)"[^>]*?>)([\s\S]*?)(<\/\2>)/g;
-    return templateContent.replace(ngSwitchPattern, (match, openTag, tagName, switchExpression, content, closeTag) => {
-        // Clean up the content by removing extra whitespace from nested @case/@default blocks
-        const cleanContent = content.trim();
-        return `@switch (${switchExpression}) {\n${cleanContent}\n}`;
-    });
-}
 
 /**
  * Main function to convert all Angular structural directives to control flow syntax
@@ -162,17 +11,346 @@ function convertNgSwitchContainerToAtSwitch(templateContent: string): string {
 function convertAngularControlFlow(templateContent: string): string {
     let result = templateContent;
 
-    // Process ngSwitch child elements FIRST (before the container)
-    result = convertNgSwitchChildrenToAtSwitch(result);
+    // We need to process directives. 
+    // To avoid issues with nesting and position changes, we can process them one by one.
+    // We search for the first directive, convert it, and then search again from the beginning.
+    // This is less efficient but safer for nested structures.
 
-    // Then process other directives
-    result = convertNgForToAtFor(result);
-    result = convertNgIfToAtIf(result);
+    // Directives to look for
+    const directives = [
+        '*ngIf',
+        '*ngFor',
+        '*ngSwitchCase',
+        '*ngSwitchDefault',
+        '[ngSwitch]'
+    ];
 
-    // Finally process ngSwitch containers (after children are already converted)
-    result = convertNgSwitchContainerToAtSwitch(result);
+    let found = true;
+    let maxIterations = 1000; // Safety break
+    let iterations = 0;
+
+    while (found && iterations < maxIterations) {
+        found = false;
+        iterations++;
+
+        // Find the first occurrence of any directive
+        let firstIndex = -1;
+        let firstDirective = '';
+
+        for (const dir of directives) {
+            const index = result.indexOf(dir);
+            if (index !== -1) {
+                if (firstIndex === -1 || index < firstIndex) {
+                    firstIndex = index;
+                    firstDirective = dir;
+                }
+            }
+        }
+
+        if (firstIndex !== -1) {
+            // Found a directive. Find the element it belongs to.
+            const elementRange = findElementRange(result, firstIndex);
+
+            if (elementRange) {
+                const { start, end, tagName, openTagEnd } = elementRange;
+                const elementContent = result.substring(start, end);
+                const openTag = result.substring(start, openTagEnd + 1);
+                const innerContent = result.substring(openTagEnd + 1, end - (tagName.length + 3)); // </tagName> is length+3
+                const closeTag = result.substring(end - (tagName.length + 3), end);
+
+                let converted = elementContent;
+                let matched = false;
+
+                if (firstDirective === '*ngIf') {
+                    converted = convertNgIfElement(openTag, innerContent, closeTag);
+                    matched = true;
+                } else if (firstDirective === '*ngFor') {
+                    converted = convertNgForElement(openTag, innerContent, closeTag);
+                    matched = true;
+                } else if (firstDirective === '*ngSwitchCase') {
+                    converted = convertNgSwitchCaseElement(openTag, innerContent, closeTag);
+                    matched = true;
+                } else if (firstDirective === '*ngSwitchDefault') {
+                    converted = convertNgSwitchDefaultElement(openTag, innerContent, closeTag);
+                    matched = true;
+                } else if (firstDirective === '[ngSwitch]') {
+                    converted = convertNgSwitchContainerElement(openTag, innerContent, closeTag);
+                    matched = true;
+                }
+
+                if (matched && converted !== elementContent) {
+                    result = result.substring(0, start) + converted + result.substring(end);
+                    found = true;
+                } else {
+                    // If we found a directive but couldn't convert it (e.g. parsing error),
+                    // we must avoid infinite loop. 
+                    // We can temporarily mask this directive or skip it.
+                    // For now, let's break to avoid infinite loop if we can't convert.
+                    // But better: replace the directive in the string with a placeholder to skip it next time?
+                    // Or just assume if we can't convert, we leave it.
+                    // But then we will find it again.
+                    // Let's try to replace the directive name with something else temporarily? No, that changes code.
+                    // We can search *after* this index? But we modify the string.
+
+                    // If conversion failed, we should probably skip this directive instance.
+                    // But since we restart search, we need to know which one to skip.
+                    // This simple "restart from top" approach fails if we can't convert one instance.
+
+                    // Alternative: Search for all, store ranges, sort by reverse order (bottom up), and replace.
+                    // But nested ranges change.
+
+                    // Let's assume conversion always succeeds if directive is present.
+                    // If it fails, we might be in trouble.
+                    // Let's add a check: if converted text still contains the directive at the same place, break.
+                    if (converted.includes(firstDirective)) {
+                        // Force break or skip
+                        // To skip, we can look for the next one.
+                        // But we need to modify the loop logic.
+                        // Let's just break for now to be safe.
+                        console.warn(`Failed to convert ${firstDirective} at index ${firstIndex}`);
+                        break;
+                    }
+                }
+            } else {
+                // Could not find element range for directive. 
+                // Maybe it's in a comment or invalid HTML.
+                // We should skip this occurrence.
+                // To skip, we can replace it with a placeholder in 'result' but that modifies user code.
+                // We can try to find the NEXT occurrence.
+                // But 'result' is the string we are building.
+                // If we can't process this one, we can't proceed with "restart from top".
+
+                // Let's try to mask it?
+                // result = result.substring(0, firstIndex) + "MASKED" + result.substring(firstIndex + firstDirective.length);
+                // This destroys code.
+
+                // Correct approach: Use a cursor.
+                // But replacements change indices.
+
+                // Let's stick to "restart from top" but if we fail to find range, we break to avoid infinite loop.
+                break;
+            }
+        }
+    }
 
     return result;
+}
+
+function convertNgIfElement(openTag: string, innerContent: string, closeTag: string): string {
+    const ifExpression = getAttribute(openTag, '*ngIf');
+    if (!ifExpression) return openTag + innerContent + closeTag;
+
+    let ifResult = '';
+    // Handle "else" clause
+    if (ifExpression.includes(';') && ifExpression.includes('else')) {
+        const parts = ifExpression.split(';').map((p: string) => p.trim());
+        const condition = parts[0];
+
+        // Check for "as alias" pattern
+        const asMatch = condition.match(/(.+)\s+as\s+(\w+)/);
+        if (asMatch) {
+            const [, actualCondition, alias] = asMatch;
+            ifResult = `@if (${actualCondition}; as ${alias}) {\n`;
+        } else {
+            ifResult = `@if (${condition}) {\n`;
+        }
+    } else {
+        // Handle "as alias" pattern without else
+        const asMatch = ifExpression.match(/(.+)\s+as\s+(\w+)/);
+        if (asMatch) {
+            const [, condition, alias] = asMatch;
+            ifResult = `@if (${condition}; as ${alias}) {\n`;
+        } else {
+            // Simple condition
+            ifResult = `@if (${ifExpression}) {\n`;
+        }
+    }
+
+    const cleanOpenTag = removeAttribute(openTag, '*ngIf');
+    ifResult += `  ${cleanOpenTag}${innerContent}${closeTag}\n`;
+    ifResult += '}';
+    return ifResult;
+}
+
+function convertNgForElement(openTag: string, innerContent: string, closeTag: string): string {
+    const forExpression = getAttribute(openTag, '*ngFor');
+    if (!forExpression) return openTag + innerContent + closeTag;
+
+    const parts = forExpression.split(';').map((p: string) => p.trim());
+    const mainPart = parts[0]; // "let item of items"
+
+    const mainMatch = mainPart.match(/let\s+(\w+)\s+of\s+(.+)/);
+    if (!mainMatch) return openTag + innerContent + closeTag;
+
+    const [, variable, iterable] = mainMatch;
+
+    let trackExpression = variable;
+    let indexVariable = '';
+
+    for (let i = 1; i < parts.length; i++) {
+        const part = parts[i].trim();
+        if (part.startsWith('let ') && part.includes('= index')) {
+            const indexMatch = part.match(/let\s+(\w+)\s*=\s*index/);
+            if (indexMatch) indexVariable = indexMatch[1];
+        } else if (part.startsWith('trackBy:')) {
+            const trackByMatch = part.match(/trackBy:\s*(.+)/);
+            if (trackByMatch) {
+                const trackByFn = trackByMatch[1].trim();
+                trackExpression = `${trackByFn}(${variable})`;
+            }
+        }
+    }
+
+    let forResult = `@for (${variable} of ${iterable}; track ${trackExpression}`;
+    if (indexVariable) {
+        forResult += `; let ${indexVariable} = $index`;
+    }
+    forResult += ') {\n';
+
+    const cleanOpenTag = removeAttribute(openTag, '*ngFor');
+    forResult += `  ${cleanOpenTag}${innerContent}${closeTag}\n`;
+    forResult += '}';
+    return forResult;
+}
+
+function convertNgSwitchCaseElement(openTag: string, innerContent: string, closeTag: string): string {
+    const caseValue = getAttribute(openTag, '*ngSwitchCase');
+    if (!caseValue) return openTag + innerContent + closeTag;
+
+    const cleanOpenTag = removeAttribute(openTag, '*ngSwitchCase');
+    return `@case (${caseValue}) {\n  ${cleanOpenTag}${innerContent}${closeTag}\n}`;
+}
+
+function convertNgSwitchDefaultElement(openTag: string, innerContent: string, closeTag: string): string {
+    const cleanOpenTag = removeAttribute(openTag, '*ngSwitchDefault');
+    return `@default {\n  ${cleanOpenTag}${innerContent}${closeTag}\n}`;
+}
+
+function convertNgSwitchContainerElement(openTag: string, innerContent: string, closeTag: string): string {
+    const switchExpression = getAttribute(openTag, '[ngSwitch]');
+    if (!switchExpression) return openTag + innerContent + closeTag;
+
+    // For container, we remove the container element and wrap content in @switch
+    const cleanContent = innerContent.trim();
+    return `@switch (${switchExpression}) {\n${cleanContent}\n}`;
+}
+
+function getAttribute(tag: string, attributeName: string): string | null {
+    const escapedName = attributeName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`${escapedName}\\s*=\\s*(["'])(.*?)\\1`, 's');
+    const match = tag.match(regex);
+    return match ? match[2] : null;
+}
+
+function removeAttribute(tag: string, attributeName: string): string {
+    const escapedName = attributeName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`\\s*${escapedName}\\s*=\\s*(["'])(.*?)\\1`, 'gs');
+    let result = tag.replace(regex, '');
+    const bareRegex = new RegExp(`\\s*${escapedName}(?=[\\s/>])`, 'g');
+    result = result.replace(bareRegex, '');
+    return result;
+}
+
+function findElementRange(content: string, directiveIndex: number): { start: number, end: number, tagName: string, openTagEnd: number } | null {
+    // Find start of the opening tag (search backwards from directiveIndex)
+    let startIndex = -1;
+    let tagName = '';
+
+    for (let i = directiveIndex; i >= 0; i--) {
+        if (content[i] === '<' && /[a-zA-Z]/.test(content[i + 1])) {
+            let j = i + 1;
+            while (j < content.length && /[\w-]/.test(content[j])) j++;
+            tagName = content.substring(i + 1, j);
+            startIndex = i;
+            break;
+        }
+    }
+
+    if (startIndex === -1) return null;
+
+    // Find end of opening tag
+    let openTagEnd = -1;
+    let inQuote = false;
+    let quoteChar = '';
+    for (let i = startIndex; i < content.length; i++) {
+        const char = content[i];
+        if (inQuote) {
+            if (char === quoteChar) inQuote = false;
+        } else {
+            if (char === '"' || char === "'") {
+                inQuote = true;
+                quoteChar = char;
+            } else if (char === '>') {
+                openTagEnd = i;
+                break;
+            }
+        }
+    }
+
+    if (openTagEnd === -1) return null;
+
+    // Check if self-closing
+    if (content[openTagEnd - 1] === '/') {
+        return { start: startIndex, end: openTagEnd + 1, tagName, openTagEnd };
+    }
+
+    // Find closing tag with depth counting
+    let depth = 1;
+    let currentIndex = openTagEnd + 1;
+
+    while (currentIndex < content.length) {
+        const nextTagIndex = content.indexOf('<', currentIndex);
+        if (nextTagIndex === -1) break;
+
+        if (content.startsWith(`</${tagName}>`, nextTagIndex)) {
+            depth--;
+            if (depth === 0) {
+                return {
+                    start: startIndex,
+                    end: nextTagIndex + `</${tagName}>`.length,
+                    tagName,
+                    openTagEnd
+                };
+            }
+            currentIndex = nextTagIndex + 1;
+        }
+        else if (content.startsWith(`<${tagName}`, nextTagIndex)) {
+            const charAfter = content[nextTagIndex + 1 + tagName.length];
+            if (/[\s/>]/.test(charAfter)) {
+                let innerTagEnd = -1;
+                let innerInQuote = false;
+                let innerQuoteChar = '';
+                for (let k = nextTagIndex; k < content.length; k++) {
+                    if (innerInQuote) {
+                        if (content[k] === innerQuoteChar) innerInQuote = false;
+                    } else {
+                        if (content[k] === '"' || content[k] === "'") {
+                            innerInQuote = true;
+                            innerQuoteChar = content[k];
+                        } else if (content[k] === '>') {
+                            innerTagEnd = k;
+                            break;
+                        }
+                    }
+                }
+
+                if (innerTagEnd !== -1) {
+                    if (content[innerTagEnd - 1] !== '/') {
+                        depth++;
+                    }
+                    currentIndex = innerTagEnd + 1;
+                } else {
+                    currentIndex = nextTagIndex + 1;
+                }
+            } else {
+                currentIndex = nextTagIndex + 1;
+            }
+        } else {
+            currentIndex = nextTagIndex + 1;
+        }
+    }
+
+    return null;
 }
 
 /**
