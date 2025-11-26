@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { convertToControlFlow, convertStructuralDirectiveAtSpecificLine } from './template-converter.js';
-import { removeCommentsExceptRegions, removeBlankLinesOutsideStrings } from './text-utils.js';
+import { removeCommentsExceptRegions, removeBlankLinesOutsideStrings, removeRegions } from './text-utils.js';
 
 // Type definition for organize options
 export type OrganizeOptions = {
@@ -165,6 +165,7 @@ export function activate(context: vscode.ExtensionContext) {
         cmd('angularOrganizer.convertToControlFlow', (u) => runLightweightTransform(convertToControlFlow, u));
         cmd('angularOrganizer.convertStructuralDirectiveAtCursor', () => convertStructuralDirectiveAtCursor());
         cmd('angularOrganizer.removeCommentsExceptRegions', (u) => runLightweightTransform(removeCommentsExceptRegions, u));
+        cmd('angularOrganizer.removeRegions', (u) => runLightweightTransform(removeRegions, u));
 
         // Heavy commands (require ts-morph - dynamically loaded)
         cmd('angularOrganizer.sortImports', (u) => runHeavyTransform('sortImportsOnly', u));

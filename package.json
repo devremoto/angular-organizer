@@ -39,6 +39,7 @@
     "onCommand:angularOrganizer.reorder.protectedMethods",
     "onCommand:angularOrganizer.reorder.privateMethods",
     "onCommand:angularOrganizer.removeCommentsExceptRegions",
+    "onCommand:angularOrganizer.removeRegions",
     "onCommand:angularOrganizer.convertToControlFlow",
     "onCommand:angularOrganizer.convertStructuralDirectiveAtCursor",
     "onCommand:angularOrganizer.hasStructuralDirectiveAtCursor"
@@ -120,6 +121,10 @@
       {
         "command": "angularOrganizer.removeCommentsExceptRegions",
         "title": "Angular Organizer: Remove Comments"
+      },
+      {
+        "command": "angularOrganizer.removeRegions",
+        "title": "Angular Organizer: Remove Regions"
       },
       {
         "command": "angularOrganizer.convertToControlFlow",
@@ -286,6 +291,10 @@
         {
           "command": "angularOrganizer.removeCommentsExceptRegions",
           "group": "a@10"
+        },
+        {
+          "command": "angularOrganizer.removeRegions",
+          "group": "a@20"
         }
       ],
       "angularOrganizer.menu.refactoring": [
@@ -301,6 +310,9 @@
       "commandPalette": [
         {
           "command": "angularOrganizer.removeCommentsExceptRegions"
+        },
+        {
+          "command": "angularOrganizer.removeRegions"
         },
         {
           "command": "angularOrganizer.convertToControlFlow",
@@ -391,7 +403,7 @@
     "package": "vsce package",
     "publish": "vsce publish",
     "cleanup-vsix": "node scripts/cleanup-vsix.js",
-    "test": "npm run test:optimized && npm run test:proximity && npm run test:ng-destroy && npm run test:comments && npm run test:hooks && npm run test:control-flow && npm run test:context-menu && npm run test:element-wrapping",
+    "test": "npm run test:optimized && npm run test:proximity && npm run test:ng-destroy && npm run test:comments && npm run test:hooks && npm run test:control-flow && npm run test:context-menu && npm run test:element-wrapping && npm run test:regions",
     "test:optimized": "node tests/test-optimized-bundle.mjs",
     "test:proximity": "node tests/test-proximity.mjs",
     "test:ng-destroy": "node tests/test-ng-destroy.mjs",
@@ -399,7 +411,8 @@
     "test:hooks": "node tests/test-post-commit.mjs",
     "test:control-flow": "node tests/test-control-flow-conversion.mjs",
     "test:context-menu": "node tests/test-context-menu.mjs",
-    "test:element-wrapping": "node tests/test-element-wrapping.mjs"
+    "test:element-wrapping": "node tests/test-element-wrapping.mjs",
+    "test:regions": "node tests/test-remove-regions.mjs"
   },
   "dependencies": {
     "ts-morph": "^22.0.0",

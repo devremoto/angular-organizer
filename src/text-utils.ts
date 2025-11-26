@@ -69,6 +69,17 @@ export function removeCommentsExceptRegions(
 }
 
 /**
+ * Remove only //#region and //#endregion markers
+ */
+export function removeRegions(fileText: string, _filePath: string): string {
+    // Matches: //#region ...  or  //#endregion ...
+    // Also cleans up excessive newlines (3 or more becomes 2)
+    return fileText
+        .replace(/^\s*\/\/\s*#(?:end)?region\b.*$/gmi, '')
+        .replace(/\n{3,}/g, '\n\n');
+}
+
+/**
  * Remove blank lines that are OUTSIDE of strings/template literals. Safe for inline templates.
  */
 export function removeBlankLinesOutsideStrings(fileText: string): string {
