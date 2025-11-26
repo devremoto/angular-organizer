@@ -1,4 +1,4 @@
-import { convertToControlFlow, convertStructuralDirectiveAtPosition } from '../out/organize.js';
+import { convertToControlFlow, convertStructuralDirectiveAtSpecificLine } from '../out/template-converter.js';
 
 // Test HTML template conversion
 const htmlTemplate = `
@@ -68,13 +68,10 @@ console.log('📄 Selective Conversion Test:');
 const testHtml = '<li *ngFor="let item of items; let i = index">{{ item.name }}</li>';
 console.log('Original line:', testHtml);
 
-const convertedLine = convertStructuralDirectiveAtPosition(
-    testHtml,
-    'test.html',
-    0, // start line
-    0, // end line  
-    0, // start char
-    testHtml.length // end char
+const convertedLine = convertStructuralDirectiveAtSpecificLine(
+  testHtml,
+  'test.html',
+  0 // cursor line
 );
 console.log('Converted line:', convertedLine);
 

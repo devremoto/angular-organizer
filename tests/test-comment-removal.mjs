@@ -1,5 +1,5 @@
 // Test script for comment removal
-import { removeCommentsExceptRegions } from '../out/organize.js';
+import { removeCommentsExceptRegions } from '../out/text-utils.js';
 
 const testCodeWithComments = `import { Component } from '@angular/core';
 

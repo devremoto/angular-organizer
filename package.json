@@ -316,8 +316,8 @@
     "keybindings": [
       {
         "command": "angularOrganizer.convertStructuralDirectiveAtCursor",
-        "key": "ctrl+shift+c",
-        "mac": "cmd+shift+c",
+        "key": "ctrl+shift+2",
+        "mac": "cmd+shift+2",
         "when": "editorTextFocus && (editorLangId == html || editorLangId == typescript)"
       }
     ],
@@ -326,7 +326,7 @@
       "properties": {
         "angularOrganizer.emitRegions": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "When enabled, surround each member group with //#region ... //#endregion .... Turn off to omit regions."
         },
         "angularOrganizer.formatAfterOrganize": {
@@ -388,7 +388,6 @@
     "build": "npm run build:optimized && npm run build:organize",
     "build:optimized": "esbuild src/extension-optimized.ts src/template-converter.ts src/text-utils.ts --bundle --platform=node --format=cjs --outdir=out --external:vscode --external:./organize.js",
     "build:organize": "esbuild src/organize.ts --bundle --platform=node --format=cjs --outfile=out/organize.js --external:vscode",
-    "build:legacy": "esbuild src/extension.ts --bundle --platform=node --format=cjs --outfile=out/extension.js --external:vscode",
     "package": "vsce package",
     "publish": "vsce publish",
     "cleanup-vsix": "node scripts/cleanup-vsix.js",
@@ -399,6 +398,7 @@
     "test:comments": "node tests/test-comment-removal.mjs",
     "test:hooks": "node tests/test-post-commit.mjs",
     "test:control-flow": "node tests/test-control-flow-conversion.mjs",
+    "test:context-menu": "node tests/test-context-menu.mjs",
     "test:element-wrapping": "node tests/test-element-wrapping.mjs"
   },
   "dependencies": {

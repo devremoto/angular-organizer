@@ -1,5 +1,5 @@
 // Test the optimized bundle functionality
-import { convertToControlFlow, convertStructuralDirectiveAtPosition } from '../out/template-converter.js';
+import { convertToControlFlow, convertStructuralDirectiveAtSpecificLine } from '../out/template-converter.js';
 import { removeCommentsExceptRegions, removeBlankLinesOutsideStrings } from '../out/text-utils.js';
 
 console.log('🧪 Testing Optimized Bundle Functionality...\n');
@@ -62,7 +62,7 @@ console.log('After lines:', blanksRemoved.split('\n').length);
 // Test selective conversion
 console.log('\n✅ Selective Conversion Test:');
 const singleLine = '<li *ngFor="let item of items">{{ item }}</li>';
-const selective = convertStructuralDirectiveAtPosition(singleLine, 'test.html', 0, 0, 0, singleLine.length);
+const selective = convertStructuralDirectiveAtSpecificLine(singleLine, 'test.html', 0);
 console.log('Converted:', selective.includes('@for'));
 
 console.log('\n🎉 All lightweight functionality tests passed!');

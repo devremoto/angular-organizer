@@ -13,7 +13,7 @@ export type OrganizeOptions = {
     const cfg = vscode.workspace.getConfiguration('angularOrganizer');
     return {
         organize: {
-            emitRegions: cfg.get<boolean>('emitRegions', true),
+            emitRegions: cfg.get<boolean>('emitRegions', false),
             optimizeMethodProximity: cfg.get<boolean>('optimizeMethodProximity', false),
             removeUnusedImports: cfg.get<boolean>('removeUnusedImports', true),
             removeUnusedVariables: cfg.get<boolean>('removeUnusedVariables', true),
