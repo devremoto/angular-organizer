@@ -438,20 +438,57 @@ function sortMethodsByProximity(methods: any[], allMembers: any[]): any[] {
 }
 
 function reorderAngularClasses(sf: SourceFile, opts: Required<OrganizeOptions>) {
-  // no SyntaxKind needed — this is simpler and stable
   const classes = sf.getClasses();
-  for (const cls of classes) reorderOneClass(cls, opts);
+  if (classes.length === 0) return;
+
+  // Process all classes and collect their reorganized content
+  const classChanges: Array<{ start: number; end: number; newContent: string }> = [];
+
+  for (const cls of classes) {
+    const classStart = cls.getStart(true);
+    const classEnd = cls.getEnd();
+    const newContent = getReorderedClassContent(cls, opts);
+
+    classChanges.push({
+      start: classStart,
+      end: classEnd,
+      newContent
+    });
+  }
+
+  // Apply all changes in reverse order (so indices don't shift)
+  const fullText = sf.getFullText();
+  let result = fullText;
+
+  for (let i = classChanges.length - 1; i >= 0; i--) {
+    const change = classChanges[i];
+    result = result.slice(0, change.start) + change.newContent + result.slice(change.end);
+  }
+
+  sf.replaceWithText(result);
 }
 
-function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>) {
+function getReorderedClassContent(cls: ClassDeclaration, opts: Required<OrganizeOptions>): string {
   const members = cls.getMembers();
 
   const isReadonlyStatic = (m: any) => m.isStatic?.() && (m.isReadonly?.() ?? false) && Node.isPropertyDeclaration(m);
-  const isField = (m: any) => Node.isPropertyDeclaration(m) && !isReadonlyStatic(m);
+  // Arrow function properties: e.g., closeEditModal: () => void = () => { }; or getRequestData: () => SearchRequest<T>;
+  const isArrowFunctionProperty = (m: any) => {
+    if (!Node.isPropertyDeclaration(m)) return false;
+    // Check if initializer is an arrow function
+    const initializer = m.getInitializer?.();
+    if (initializer && Node.isArrowFunction(initializer)) return true;
+    // Check if type is a function type
+    const typeNode = m.getTypeNode?.();
+    return typeNode && Node.isFunctionTypeNode(typeNode);
+  };
+  const isField = (m: any) => Node.isPropertyDeclaration(m) && !isReadonlyStatic(m) && !isArrowFunctionProperty(m);
   const isGetter = (m: any) => Node.isGetAccessorDeclaration(m);
   const isSetter = (m: any) => Node.isSetAccessorDeclaration(m);
   const isCtor = (m: any) => Node.isConstructorDeclaration(m);
   const isMethod = (m: any) => Node.isMethodDeclaration(m);
+  // Treat arrow function properties as methods for organization purposes
+  const isMethodLike = (m: any) => isMethod(m) || isArrowFunctionProperty(m);
 
   // Abstract members
   const isAbstractProperty = (m: any) => Node.isPropertyDeclaration(m) && m.hasModifier?.('abstract');
@@ -590,7 +627,7 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
     }
     if (isSignalHookField(m)) { B[19].push(m); continue; }
 
-    if (isMethod(m)) {
+    if (isMethodLike(m)) {
       const a = accessOf(m);
       if (a === 'public') B[20].push(m);
       else if (a === 'protected') B[21].push(m);
@@ -652,13 +689,15 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
 
   // Build class body: regions optional, keep one blank line between consecutive methods
   const body = cls.getChildSyntaxList();
-  if (!body) return;
+  if (!body) return '';
 
   const src = cls.getSourceFile().getFullText();
   const start = body.getPos(); // after '{'
   const end = body.getEnd(); // before '}'
-  const before = src.slice(0, start);
-  const after = stripRegionLines(src.slice(end))
+  const classStart = cls.getStart(true); // Get the start of the class declaration (including decorators/comments)
+  const classEnd = cls.getEnd();
+  const before = src.slice(classStart, start);
+  const after = src.slice(end, classEnd);
 
 
   const isMethodNode = (n: any) => Node.isMethodDeclaration(n) || Node.isConstructorDeclaration(n);
@@ -749,6 +788,6 @@ function reorderOneClass(cls: ClassDeclaration, opts: Required<OrganizeOptions>)
   }
   while (pieces.length && pieces[pieces.length - 1] === '') pieces.pop();
 
-  cls.getSourceFile().replaceWithText(before + '\n' + pieces.join('\n') + after);
+  return before + '\n' + pieces.join('\n') + after;
 }
 
