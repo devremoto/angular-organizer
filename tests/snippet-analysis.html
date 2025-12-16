@@ -1,0 +1,281 @@
+<div *ngIf="!loading() && !error()" class="card">
+    <div
+        class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            {{ 'MERCHANTS.LIST_TITLE' | translate }}
+            <span class="badge bg-primary ms-2">{{ filteredMerchants().length
+                }}</span>
+        </h5>
+        <div class="btn-group" role="group" aria-label="View mode selector">
+            <button
+                id="table-view-btn"
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                [class.active]="viewMode === 'table'"
+                (click)="viewMode = 'table'"
+                [attr.aria-label]="'MERCHANTS.TABLE_VIEW' | translate"
+                [attr.aria-pressed]="viewMode === 'table'"
+                title="{{ 'MERCHANTS.TABLE_VIEW' | translate }}">
+                <i class="fas fa-table" aria-hidden="true"></i>
+            </button>
+            <button
+                id="card-view-btn"
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                [class.active]="viewMode === 'card'"
+                (click)="viewMode = 'card'"
+                [attr.aria-label]="'MERCHANTS.CARD_VIEW' | translate"
+                [attr.aria-pressed]="viewMode === 'card'"
+                title="{{ 'MERCHANTS.CARD_VIEW' | translate }}">
+                <i class="fas fa-th" aria-hidden="true"></i>
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- Table View -->
+        @if(viewMode === 'table'){
+        <div class="table-responsive">
+            <table class="table table-hover" role="table"
+                aria-label="{{ 'MERCHANTS.LIST_TITLE' | translate }}">
+                <thead>
+                    <tr role="row">
+                        <th scope="col">{{ 'MERCHANTS.BUSINESS_NAME' | translate
+                            }}</th>
+                        <th scope="col">{{ 'COMMON.EMAIL' | translate }}</th>
+                        <th scope="col">{{ 'MERCHANTS.BUSINESS_TYPE' | translate
+                            }}</th>
+                        <th scope="col">{{ 'COMMON.STATUS' | translate }}</th>
+                        <th scope="col">{{ 'COMMON.CREATED_AT' | translate
+                            }}</th>
+                        <th scope="col" width="120">{{ 'COMMON.ACTIONS' |
+                            translate
+                            }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for(merchant of paginatedMerchants(); track merchant.id) {
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm me-2">
+                                    <span
+                                        class="avatar-title bg-primary text-white rounded-circle">
+                                        {{ (merchant.merchantCode ||
+                                        'Merchant').charAt(0).toUpperCase() }}
+                                    </span>
+                                </div>
+                                <div>
+                                    <div class="fw-semibold">{{
+                                        merchant.merchantCode
+                                        }}</div>
+                                    <small class="text-muted">{{ merchant.name
+                                        }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ merchant.email }}</td>
+                        <td>
+                            <span class="badge bg-light text-dark">{{
+                                merchant.businessType }}</span>
+                        </td>
+                        <td>
+                            <span class="badge"
+                                [class.bg-success]="merchant.isActive"
+                                [class.bg-danger]="!merchant.isActive">
+                                {{ merchant.isActive ? ('COMMON.ACTIVE' |
+                                translate) :
+                                ('COMMON.INACTIVE' | translate) }}
+                            </span>
+                        </td>
+                        <td>
+                            <small>{{ merchant.createdAt | date:'short'
+                                }}</small>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group"
+                                [attr.aria-label]="'Actions for ' + merchant.merchantCode">
+                                <button
+                                    class="btn btn-sm btn-outline-secondary"
+                                    (click)="openConfigModal(merchant)"
+                                    [attr.aria-label]="('COMMON.CONFIGURE' | translate) + ' ' + merchant.merchantCode"
+                                    [title]="('COMMON.CONFIGURE' | translate) + ' ' + merchant.merchantCode">
+                                    <i class="fas fa-cog"
+                                        aria-hidden="true"></i>
+                                    <span class="visually-hidden">{{
+                                        'COMMON.CONFIGURE' |
+                                        translate }}</span>
+                                </button>
+                                <button
+                                    class="btn btn-sm btn-outline-primary"
+                                    (click)="editMerchant(merchant)"
+                                    [attr.aria-label]="('COMMON.EDIT' | translate) + ' ' + merchant.merchantCode"
+                                    [title]="('COMMON.EDIT' | translate) + ' ' + merchant.merchantCode">
+                                    <i class="fas fa-edit"
+                                        aria-hidden="true"></i>
+                                    <span class="visually-hidden">{{
+                                        'COMMON.EDIT' |
+                                        translate }}</span>
+                                </button>
+                                <button
+                                    class="btn btn-sm btn-outline-info"
+                                    (click)="viewMerchant(merchant)"
+                                    [attr.aria-label]="('COMMON.VIEW' | translate) + ' ' + merchant.merchantCode"
+                                    [title]="('COMMON.VIEW' | translate) + ' ' + merchant.merchantCode">
+                                    <i class="fas fa-eye"
+                                        aria-hidden="true"></i>
+                                    <span class="visually-hidden">{{
+                                        'COMMON.VIEW' |
+                                        translate }}</span>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    }
+                    @if (filteredMerchants().length === 0) {
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                            <p class="text-muted">{{
+                                'MERCHANTS.NO_MERCHANTS_FOUND' |
+                                translate }}</p>
+                        </td>
+                    </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        }
+        <!-- Card View -->
+        @if(viewMode === 'card'){
+        <div class="row">
+            @for(merchant of paginatedMerchants(); track merchant.merchantCode){
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card h-100 merchant-card">
+                    <div class="card-body">
+                        <div
+                            class="d-flex align-items-start justify-content-between mb-2">
+                            <div class="avatar-md me-3">
+                                <span
+                                    class="avatar-title bg-primary text-white rounded">
+                                    {{ (merchant.merchantCode ||
+                                    'Merchant').charAt(0).toUpperCase() }}
+                                </span>
+                            </div>
+                            <span class="badge"
+                                [class.bg-success]="merchant.isActive"
+                                [class.bg-danger]="!merchant.isActive">
+                                {{ merchant.isActive ? ('COMMON.ACTIVE' |
+                                translate) :
+                                ('COMMON.INACTIVE' | translate) }}
+                            </span>
+                        </div>
+                        <h6 class="card-title">{{ merchant.merchantCode }}</h6>
+                        <p class="card-text text-muted small mb-2">{{
+                            merchant.name
+                            }}</p>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                <i class="fas fa-envelope me-1"></i> {{
+                                merchant.email }}
+                            </small>
+                        </p>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                <i class="fas fa-building me-1"></i> {{
+                                merchant.businessType }}
+                            </small>
+                        </p>
+                    </div>
+                    <div class="card-footer">
+                        <div class="btn-group w-100" role="group"
+                            [attr.aria-label]="'Actions for ' + merchant.merchantCode">
+                            <button
+                                class="btn btn-sm btn-outline-secondary"
+                                (click)="openConfigModal(merchant)"
+                                [attr.aria-label]="('COMMON.CONFIGURE' | translate) + ' ' + merchant.merchantCode"
+                                [title]="('COMMON.CONFIGURE' | translate) + ' ' + merchant.merchantCode">
+                                <i class="fas fa-cog me-1"
+                                    aria-hidden="true"></i> {{
+                                'COMMON.CONFIGURE' |
+                                translate }}
+                            </button>
+                            <button
+                                class="btn btn-sm btn-outline-primary"
+                                (click)="editMerchant(merchant)"
+                                [attr.aria-label]="('COMMON.EDIT' | translate) + ' ' + merchant.merchantCode"
+                                [title]="('COMMON.EDIT' | translate) + ' ' + merchant.merchantCode">
+                                <i class="fas fa-edit me-1"
+                                    aria-hidden="true"></i> {{
+                                'COMMON.EDIT' |
+                                translate }}
+                            </button>
+                            <button
+                                class="btn btn-sm btn-outline-info"
+                                (click)="viewMerchant(merchant)"
+                                [attr.aria-label]="('COMMON.VIEW' | translate) + ' ' + merchant.merchantCode"
+                                [title]="('COMMON.VIEW' | translate) + ' ' + merchant.merchantCode">
+                                <i class="fas fa-eye me-1"
+                                    aria-hidden="true"></i> {{
+                                'COMMON.VIEW' |
+                                translate }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            }
+            @if(filteredMerchants().length === 0){
+            <div
+                class="col-12 text-center py-4">
+                <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                <p class="text-muted">{{ 'MERCHANTS.NO_MERCHANTS_FOUND' |
+                    translate }}</p>
+            </div>
+            }
+        </div>
+
+        }
+        <!-- Pagination -->
+        @if (filteredMerchants().length > pageSize) {
+        <nav class="mt-4"
+            aria-label="Merchants pagination">
+            <ul class="pagination justify-content-center">
+                <li class="page-item" [class.disabled]="currentPage === 1">
+                    <button
+                        class="page-link"
+                        (click)="goToPage(currentPage - 1)"
+                        [disabled]="currentPage === 1"
+                        [attr.aria-label]="'COMMON.PREVIOUS_PAGE' | translate"
+                        title="{{ 'COMMON.PREVIOUS_PAGE' | translate }}">
+                        <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                    </button>
+                </li>
+                @for (page of visiblePages(); track page) {
+                <li class="page-item"
+                    [class.active]="page === currentPage">
+                    <button
+                        class="page-link"
+                        (click)="goToPage(page)"
+                        [attr.aria-label]="('COMMON.PAGE' | translate) + ' ' + page"
+                        [attr.aria-current]="page === currentPage ? 'page' : null"
+                        [title]="('COMMON.GO_TO_PAGE' | translate) + ' ' + page">{{
+                        page
+                        }}</button>
+                </li>
+                }
+                <li class="page-item"
+                    [class.disabled]="currentPage === totalPages()">
+                    <button
+                        class="page-link"
+                        (click)="goToPage(currentPage + 1)"
+                        [disabled]="currentPage === totalPages()"
+                        [attr.aria-label]="'COMMON.NEXT_PAGE' | translate"
+                        title="{{ 'COMMON.NEXT_PAGE' | translate }}">
+                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                    </button>
+                </li>
+            </ul>
+        </nav>
+        }
+    </div>
+</div>

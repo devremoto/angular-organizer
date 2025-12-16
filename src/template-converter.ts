@@ -11,11 +11,6 @@
 function convertAngularControlFlow(templateContent: string): string {
     let result = templateContent;
 
-    // We need to process directives. 
-    // To avoid issues with nesting and position changes, we can process them one by one.
-    // We search for the first directive, convert it, and then search again from the beginning.
-    // This is less efficient but safer for nested structures.
-
     // Directives to look for
     const directives = [
         '*ngIf',
@@ -25,20 +20,19 @@ function convertAngularControlFlow(templateContent: string): string {
         '[ngSwitch]'
     ];
 
-    let found = true;
     let maxIterations = 1000; // Safety break
     let iterations = 0;
+    let searchStartIndex = 0;
 
-    while (found && iterations < maxIterations) {
-        found = false;
+    while (iterations < maxIterations) {
         iterations++;
 
-        // Find the first occurrence of any directive
+        // Find the first occurrence of any directive AFTER searchStartIndex
         let firstIndex = -1;
         let firstDirective = '';
 
         for (const dir of directives) {
-            const index = result.indexOf(dir);
+            const index = result.indexOf(dir, searchStartIndex);
             if (index !== -1) {
                 if (firstIndex === -1 || index < firstIndex) {
                     firstIndex = index;
@@ -47,89 +41,57 @@ function convertAngularControlFlow(templateContent: string): string {
             }
         }
 
-        if (firstIndex !== -1) {
-            // Found a directive. Find the element it belongs to.
-            const elementRange = findElementRange(result, firstIndex);
+        if (firstIndex === -1) {
+            // No more directives found
+            break;
+        }
 
-            if (elementRange) {
-                const { start, end, tagName, openTagEnd } = elementRange;
-                const elementContent = result.substring(start, end);
-                const openTag = result.substring(start, openTagEnd + 1);
-                const innerContent = result.substring(openTagEnd + 1, end - (tagName.length + 3)); // </tagName> is length+3
-                const closeTag = result.substring(end - (tagName.length + 3), end);
+        // Found a directive at firstIndex. Find the element it belongs to.
+        const elementRange = findElementRange(result, firstIndex);
+        let converted = false;
 
-                let converted = elementContent;
-                let matched = false;
+        if (elementRange) {
+            const { start, end, tagName, openTagEnd } = elementRange;
+            const elementContent = result.substring(start, end);
+            const openTag = result.substring(start, openTagEnd + 1);
+            const innerContent = result.substring(openTagEnd + 1, end - (tagName.length + 3)); // </tagName> is length+3
+            const closeTag = result.substring(end - (tagName.length + 3), end);
 
-                if (firstDirective === '*ngIf') {
-                    converted = convertNgIfElement(openTag, innerContent, closeTag);
-                    matched = true;
-                } else if (firstDirective === '*ngFor') {
-                    converted = convertNgForElement(openTag, innerContent, closeTag);
-                    matched = true;
-                } else if (firstDirective === '*ngSwitchCase') {
-                    converted = convertNgSwitchCaseElement(openTag, innerContent, closeTag);
-                    matched = true;
-                } else if (firstDirective === '*ngSwitchDefault') {
-                    converted = convertNgSwitchDefaultElement(openTag, innerContent, closeTag);
-                    matched = true;
-                } else if (firstDirective === '[ngSwitch]') {
-                    converted = convertNgSwitchContainerElement(openTag, innerContent, closeTag);
-                    matched = true;
-                }
+            let convertedText = elementContent;
+            let matched = false;
 
-                if (matched && converted !== elementContent) {
-                    result = result.substring(0, start) + converted + result.substring(end);
-                    found = true;
-                } else {
-                    // If we found a directive but couldn't convert it (e.g. parsing error),
-                    // we must avoid infinite loop. 
-                    // We can temporarily mask this directive or skip it.
-                    // For now, let's break to avoid infinite loop if we can't convert.
-                    // But better: replace the directive in the string with a placeholder to skip it next time?
-                    // Or just assume if we can't convert, we leave it.
-                    // But then we will find it again.
-                    // Let's try to replace the directive name with something else temporarily? No, that changes code.
-                    // We can search *after* this index? But we modify the string.
-
-                    // If conversion failed, we should probably skip this directive instance.
-                    // But since we restart search, we need to know which one to skip.
-                    // This simple "restart from top" approach fails if we can't convert one instance.
-
-                    // Alternative: Search for all, store ranges, sort by reverse order (bottom up), and replace.
-                    // But nested ranges change.
-
-                    // Let's assume conversion always succeeds if directive is present.
-                    // If it fails, we might be in trouble.
-                    // Let's add a check: if converted text still contains the directive at the same place, break.
-                    if (converted.includes(firstDirective)) {
-                        // Force break or skip
-                        // To skip, we can look for the next one.
-                        // But we need to modify the loop logic.
-                        // Let's just break for now to be safe.
-                        console.warn(`Failed to convert ${firstDirective} at index ${firstIndex}`);
-                        break;
-                    }
-                }
-            } else {
-                // Could not find element range for directive. 
-                // Maybe it's in a comment or invalid HTML.
-                // We should skip this occurrence.
-                // To skip, we can replace it with a placeholder in 'result' but that modifies user code.
-                // We can try to find the NEXT occurrence.
-                // But 'result' is the string we are building.
-                // If we can't process this one, we can't proceed with "restart from top".
-
-                // Let's try to mask it?
-                // result = result.substring(0, firstIndex) + "MASKED" + result.substring(firstIndex + firstDirective.length);
-                // This destroys code.
-
-                // Correct approach: Use a cursor.
-                // But replacements change indices.
-
-                // Let's stick to "restart from top" but if we fail to find range, we break to avoid infinite loop.
-                break;
+            if (firstDirective === '*ngIf') {
+                convertedText = convertNgIfElement(openTag, innerContent, closeTag);
+                matched = true;
+            } else if (firstDirective === '*ngFor') {
+                convertedText = convertNgForElement(openTag, innerContent, closeTag);
+                matched = true;
+            } else if (firstDirective === '*ngSwitchCase') {
+                convertedText = convertNgSwitchCaseElement(openTag, innerContent, closeTag);
+                matched = true;
+            } else if (firstDirective === '*ngSwitchDefault') {
+                convertedText = convertNgSwitchDefaultElement(openTag, innerContent, closeTag);
+                matched = true;
+            } else if (firstDirective === '[ngSwitch]') {
+                convertedText = convertNgSwitchContainerElement(openTag, innerContent, closeTag);
+                matched = true;
             }
+
+            if (matched && convertedText !== elementContent) {
+                result = result.substring(0, start) + convertedText + result.substring(end);
+                converted = true;
+            }
+        }
+
+        if (converted) {
+            // If we modified the string, we must restart search from 0
+            // because the modification might have shifted things or created new opportunities.
+            // Since the directive is replaced, we won't find it again at the same place.
+            searchStartIndex = 0;
+        } else {
+            // If we didn't convert (false positive, comment, text, or parsing fail),
+            // we must skip this occurrence.
+            searchStartIndex = firstIndex + 1;
         }
     }
 
