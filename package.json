@@ -128,183 +128,90 @@
       },
       {
         "command": "angularOrganizer.convertToControlFlow",
-        "title": "Convert to Angular Control Flow (@for, @if)"
+        "title": "Convert All *ngIf, *ngFor, *ngSwitch to @if, @for, @switch"
       },
       {
         "command": "angularOrganizer.convertStructuralDirectiveAtCursor",
-        "title": "Convert Structural Directive to Control Flow"
+        "title": "Convert Current *ngIf, *ngFor, *ngSwitch to @if, @for, @switch (Cursor)"
       },
       {
         "command": "angularOrganizer.hasStructuralDirectiveAtCursor",
         "title": "Check for Structural Directive at Cursor"
+      },
+      {
+        "command": "angularOrganizer.toggleRegions",
+        "title": "Toggle regions"
+      },
+      {
+        "command": "angularOrganizer.organizeAllWithCleanup",
+        "title": "Organize All (remove comments)"
+      },
+      {
+        "command": "angularOrganizer.convertToStructuralDirectives",
+        "title": "Convert @if, @for, @switch to *ngIf, *ngFor, *ngSwitch"
       }
     ],
     "submenus": [
       {
         "id": "angularOrganizer.menu",
         "label": "Angular Organizer"
-      },
-      {
-        "id": "angularOrganizer.menu.fields",
-        "label": "Fields"
-      },
-      {
-        "id": "angularOrganizer.menu.decorators",
-        "label": "Decorators"
-      },
-      {
-        "id": "angularOrganizer.menu.accessors",
-        "label": "Accessors"
-      },
-      {
-        "id": "angularOrganizer.menu.methods",
-        "label": "Methods"
-      },
-      {
-        "id": "angularOrganizer.menu.cleanup",
-        "label": "Cleanup"
-      },
-      {
-        "id": "angularOrganizer.menu.refactoring",
-        "label": "Refactoring"
       }
     ],
     "menus": {
       "editor/context": [
         {
           "submenu": "angularOrganizer.menu",
-          "when": "editorLangId == typescript",
+          "when": "editorLangId == typescript || editorLangId == html",
           "group": "1_modification@10"
-        },
-        {
-          "command": "angularOrganizer.convertStructuralDirectiveAtCursor",
-          "when": "editorLangId == html || editorLangId == typescript",
-          "group": "1_modification@5"
         }
       ],
       "explorer/context": [
         {
           "submenu": "angularOrganizer.menu",
-          "when": "resourceExtname == .ts",
+          "when": "resourceExtname == .ts || resourceExtname == .html",
           "group": "7_modification@10"
         }
       ],
       "angularOrganizer.menu": [
         {
           "command": "angularOrganizer.organizeAll",
-          "group": "0_main@10"
+          "group": "0_main@10",
+          "when": "editorLangId == typescript || resourceExtname == .ts"
+        },
+        {
+          "command": "angularOrganizer.organizeAllWithCleanup",
+          "group": "0_main@11",
+          "when": "editorLangId == typescript || resourceExtname == .ts"
         },
         {
           "command": "angularOrganizer.organizeAllWithProximity",
-          "group": "0_main@15"
+          "group": "0_main@12",
+          "when": "editorLangId == typescript || resourceExtname == .ts"
         },
         {
           "command": "angularOrganizer.sortImports",
-          "group": "0_main@20"
+          "group": "0_main@13",
+          "when": "editorLangId == typescript || resourceExtname == .ts"
         },
         {
-          "command": "angularOrganizer.reorder.allMembers",
-          "group": "0_main@30"
+          "command": "angularOrganizer.toggleRegions",
+          "group": "0_main@14",
+          "when": "editorLangId == typescript || resourceExtname == .ts"
         },
-        {
-          "submenu": "angularOrganizer.menu.fields",
-          "group": "1_groups@10"
-        },
-        {
-          "submenu": "angularOrganizer.menu.decorators",
-          "group": "1_groups@20"
-        },
-        {
-          "submenu": "angularOrganizer.menu.accessors",
-          "group": "1_groups@30"
-        },
-        {
-          "submenu": "angularOrganizer.menu.methods",
-          "group": "1_groups@40"
-        },
-        {
-          "submenu": "angularOrganizer.menu.cleanup",
-          "group": "1_groups@50"
-        },
-        {
-          "submenu": "angularOrganizer.menu.refactoring",
-          "group": "1_groups@60"
-        }
-      ],
-      "angularOrganizer.menu.fields": [
-        {
-          "command": "angularOrganizer.reorder.constants",
-          "group": "a@10"
-        },
-        {
-          "command": "angularOrganizer.reorder.privateFields",
-          "group": "a@20"
-        },
-        {
-          "command": "angularOrganizer.reorder.protectedFields",
-          "group": "a@30"
-        }
-      ],
-      "angularOrganizer.menu.decorators": [
-        {
-          "command": "angularOrganizer.reorder.inputs",
-          "group": "a@10"
-        },
-        {
-          "command": "angularOrganizer.reorder.inputSetters",
-          "group": "a@20"
-        },
-        {
-          "command": "angularOrganizer.reorder.outputs",
-          "group": "a@30"
-        },
-        {
-          "command": "angularOrganizer.reorder.viewQueries",
-          "group": "a@40"
-        }
-      ],
-      "angularOrganizer.menu.accessors": [
-        {
-          "command": "angularOrganizer.reorder.accessors",
-          "group": "a@10"
-        }
-      ],
-      "angularOrganizer.menu.methods": [
-        {
-          "command": "angularOrganizer.reorder.publicMethods",
-          "group": "a@10"
-        },
-        {
-          "command": "angularOrganizer.reorder.protectedMethods",
-          "group": "a@20"
-        },
-        {
-          "command": "angularOrganizer.reorder.privateMethods",
-          "group": "a@30"
-        },
-        {
-          "command": "angularOrganizer.reorder.ctor",
-          "group": "b@10"
-        }
-      ],
-      "angularOrganizer.menu.cleanup": [
-        {
-          "command": "angularOrganizer.removeCommentsExceptRegions",
-          "group": "a@10"
-        },
-        {
-          "command": "angularOrganizer.removeRegions",
-          "group": "a@20"
-        }
-      ],
-      "angularOrganizer.menu.refactoring": [
         {
           "command": "angularOrganizer.convertToControlFlow",
-          "group": "a@10"
+          "group": "1_refactor@09",
+          "when": "editorLangId == html || resourceExtname == .html || angularOrganizer.hasTemplateUrl"
+        },
+        {
+          "command": "angularOrganizer.convertToStructuralDirectives",
+          "group": "1_refactor@10",
+          "when": "editorLangId == html || resourceExtname == .html || angularOrganizer.hasTemplateUrl"
         },
         {
           "command": "angularOrganizer.convertStructuralDirectiveAtCursor",
-          "group": "a@20"
+          "group": "1_refactor@11",
+          "when": "editorLangId == html || resourceExtname == .html || angularOrganizer.hasTemplateUrl"
         }
       ],
       "commandPalette": [
@@ -316,7 +223,7 @@
         },
         {
           "command": "angularOrganizer.convertToControlFlow",
-          "title": "Convert to Angular Control Flow (@for, @if)",
+          "title": "Convert *ngIf, *ngFor, *ngSwitch to @if, @for, @switch",
           "group": "0_main@40"
         },
         {

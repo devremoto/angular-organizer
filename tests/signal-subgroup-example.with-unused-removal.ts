@@ -13,27 +13,43 @@ import { SignalrService } from './signalr.service';
 })
 export class PaymentComponent {
 //#region Signal APIs (inject/input/output/signal)
-dialogService = inject(DialogService);
-localeService = inject(LocaleService);
-paymentService = inject(PaymentService);
-router = inject(ActivatedRoute);
-signalrService = inject(SignalrService);
 
-readonly merchantCode = input('', { alias: 'merchant-code' });
-requiredInput = input.required<string>();
+    dialogService = inject(DialogService);
 
-error = output<any>();
-ready = output<Payment>();
-success = output<any>();
+    localeService = inject(LocaleService);
 
-anotherSignal = signal<boolean>(false);
-isLoading = signal<boolean>(false);
-selectedGatewayId = signal<string>('');
+    paymentService = inject(PaymentService);
+
+    router = inject(ActivatedRoute);
+
+    signalrService = inject(SignalrService);
+
+
+    readonly merchantCode = input('', { alias: 'merchant-code' });
+
+    requiredInput = input.required<string>();
+
+
+    error = output<any>();
+
+    ready = output<Payment>();
+
+    success = output<any>();
+
+
+    anotherSignal = signal<boolean>(false);
+
+    isLoading = signal<boolean>(false);
+
+    selectedGatewayId = signal<string>('');
 //#endregion Signal APIs (inject/input/output/signal)
 
 //#region Angular lifecycle
-ngOnInit() {
+
+
+    ngOnInit() {
         console.log('Component initialized');
     }
 //#endregion Angular lifecycle
+    //#endregion Angular lifecycle
 }

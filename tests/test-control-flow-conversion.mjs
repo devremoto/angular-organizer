@@ -1,4 +1,4 @@
-import { convertToControlFlow, convertStructuralDirectiveAtSpecificLine } from '../out/template-converter.js';
+import { convertToControlFlow, convertStructuralDirectiveAtSpecificLine, convertToStructuralDirectives } from '../out/template-converter.js';
 
 // Test HTML template conversion
 const htmlTemplate = `
@@ -74,5 +74,29 @@ const convertedLine = convertStructuralDirectiveAtSpecificLine(
   0 // cursor line
 );
 console.log('Converted line:', convertedLine);
+
+
+console.log('\n' + '='.repeat(50) + '\n');
+
+// Test reverse conversion (@for -> *ngFor)
+const forWithIndex = '@for (item of items; track item.id; let i = $index) { <div>{{item}}</div> }';
+console.log('📄 Reverse Conversion Test:');
+console.log('Input:', forWithIndex);
+const convertedReverse = convertToStructuralDirectives(forWithIndex);
+console.log('Output:', convertedReverse);
+
+
+// Test Void Tags without Slash (Non-Self-Closing syntax)
+console.log('📄 Void Tags without Slash Test:');
+const imgWithoutSlash = `<img *ngIf="isImage" src="img.jpg">`;
+console.log('Input 1 (img):', imgWithoutSlash);
+const imgOutput = convertToControlFlow(imgWithoutSlash, 'test.html');
+console.log('Output 1:', imgOutput);
+
+const brWithoutSlash = `<br *ngIf="showBreak">`;
+console.log('Input 2 (br):', brWithoutSlash);
+const brOutput = convertToControlFlow(brWithoutSlash, 'test.html');
+console.log('Output 2:', brOutput);
+
 
 console.log('\n✅ Control Flow Conversion tests completed!');

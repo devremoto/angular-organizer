@@ -54,26 +54,39 @@ function convertAngularControlFlow(templateContent: string): string {
             const { start, end, tagName, openTagEnd } = elementRange;
             const elementContent = result.substring(start, end);
             const openTag = result.substring(start, openTagEnd + 1);
-            const innerContent = result.substring(openTagEnd + 1, end - (tagName.length + 3)); // </tagName> is length+3
-            const closeTag = result.substring(end - (tagName.length + 3), end);
+
+            // Get indentation for the element
+            const lastNewLine = result.lastIndexOf('\n', start - 1);
+            const lineStart = lastNewLine === -1 ? 0 : lastNewLine + 1;
+            const indentation = result.substring(lineStart, start).match(/^\s*/)?.[0] || '';
+
+            let innerContent = '';
+            let closeTag = '';
+
+            // Only parse inner content if it's not a self-closing tag
+            // For self-closing tags, end equals openTagEnd + 1
+            if (end > openTagEnd + 1) {
+                innerContent = result.substring(openTagEnd + 1, end - (tagName.length + 3)); // </tagName> is length+3
+                closeTag = result.substring(end - (tagName.length + 3), end);
+            }
 
             let convertedText = elementContent;
             let matched = false;
 
             if (firstDirective === '*ngIf') {
-                convertedText = convertNgIfElement(openTag, innerContent, closeTag);
+                convertedText = convertNgIfElement(openTag, innerContent, closeTag, indentation);
                 matched = true;
             } else if (firstDirective === '*ngFor') {
-                convertedText = convertNgForElement(openTag, innerContent, closeTag);
+                convertedText = convertNgForElement(openTag, innerContent, closeTag, indentation);
                 matched = true;
             } else if (firstDirective === '*ngSwitchCase') {
-                convertedText = convertNgSwitchCaseElement(openTag, innerContent, closeTag);
+                convertedText = convertNgSwitchCaseElement(openTag, innerContent, closeTag, indentation);
                 matched = true;
             } else if (firstDirective === '*ngSwitchDefault') {
-                convertedText = convertNgSwitchDefaultElement(openTag, innerContent, closeTag);
+                convertedText = convertNgSwitchDefaultElement(openTag, innerContent, closeTag, indentation);
                 matched = true;
             } else if (firstDirective === '[ngSwitch]') {
-                convertedText = convertNgSwitchContainerElement(openTag, innerContent, closeTag);
+                convertedText = convertNgSwitchContainerElement(openTag, innerContent, closeTag, indentation);
                 matched = true;
             }
 
@@ -98,43 +111,36 @@ function convertAngularControlFlow(templateContent: string): string {
     return result;
 }
 
-function convertNgIfElement(openTag: string, innerContent: string, closeTag: string): string {
+function convertNgIfElement(openTag: string, innerContent: string, closeTag: string, baseIndent: string = ''): string {
     const ifExpression = getAttribute(openTag, '*ngIf');
     if (!ifExpression) return openTag + innerContent + closeTag;
 
-    let ifResult = '';
-    // Handle "else" clause
+    let condition = ifExpression;
+
+    // Handle "else" clause (simplified: we just keep the condition part for @if)
     if (ifExpression.includes(';') && ifExpression.includes('else')) {
         const parts = ifExpression.split(';').map((p: string) => p.trim());
-        const condition = parts[0];
+        condition = parts[0];
+    }
 
-        // Check for "as alias" pattern
-        const asMatch = condition.match(/(.+)\s+as\s+(\w+)/);
-        if (asMatch) {
-            const [, actualCondition, alias] = asMatch;
-            ifResult = `@if (${actualCondition}; as ${alias}) {\n`;
-        } else {
-            ifResult = `@if (${condition}) {\n`;
-        }
-    } else {
-        // Handle "as alias" pattern without else
-        const asMatch = ifExpression.match(/(.+)\s+as\s+(\w+)/);
-        if (asMatch) {
-            const [, condition, alias] = asMatch;
-            ifResult = `@if (${condition}; as ${alias}) {\n`;
-        } else {
-            // Simple condition
-            ifResult = `@if (${ifExpression}) {\n`;
-        }
+    // Handle "as alias" pattern
+    const asMatch = condition.match(/(.+)\s+as\s+(\w+)/);
+    if (asMatch) {
+        const [, actualCondition, alias] = asMatch;
+        condition = `${actualCondition}; as ${alias}`;
     }
 
     const cleanOpenTag = removeAttribute(openTag, '*ngIf');
-    ifResult += `  ${cleanOpenTag}${innerContent}${closeTag}\n`;
-    ifResult += '}';
-    return ifResult;
+
+    const indentStep = '  ';
+    // Indent the content
+    const element = `${cleanOpenTag}${innerContent}${closeTag}`;
+    const indentedElement = element.replace(/\n/g, `\n${indentStep}`);
+
+    return `@if (${condition}) {\n${baseIndent}${indentStep}${indentedElement}\n${baseIndent}}`;
 }
 
-function convertNgForElement(openTag: string, innerContent: string, closeTag: string): string {
+function convertNgForElement(openTag: string, innerContent: string, closeTag: string, baseIndent: string = ''): string {
     const forExpression = getAttribute(openTag, '*ngFor');
     if (!forExpression) return openTag + innerContent + closeTag;
 
@@ -170,31 +176,52 @@ function convertNgForElement(openTag: string, innerContent: string, closeTag: st
     forResult += ') {\n';
 
     const cleanOpenTag = removeAttribute(openTag, '*ngFor');
-    forResult += `  ${cleanOpenTag}${innerContent}${closeTag}\n`;
-    forResult += '}';
+
+    const indentStep = '  ';
+    // Indent the content
+    const element = `${cleanOpenTag}${innerContent}${closeTag}`;
+    const indentedElement = element.replace(/\n/g, `\n${indentStep}`);
+
+    forResult += `${baseIndent}${indentStep}${indentedElement}\n${baseIndent}}`;
     return forResult;
 }
 
-function convertNgSwitchCaseElement(openTag: string, innerContent: string, closeTag: string): string {
+function convertNgSwitchCaseElement(openTag: string, innerContent: string, closeTag: string, baseIndent: string = ''): string {
     const caseValue = getAttribute(openTag, '*ngSwitchCase');
     if (!caseValue) return openTag + innerContent + closeTag;
 
     const cleanOpenTag = removeAttribute(openTag, '*ngSwitchCase');
-    return `@case (${caseValue}) {\n  ${cleanOpenTag}${innerContent}${closeTag}\n}`;
+
+    const indentStep = '  ';
+    // Indent the content
+    const element = `${cleanOpenTag}${innerContent}${closeTag}`;
+    const indentedElement = element.replace(/\n/g, `\n${indentStep}`);
+
+    return `@case (${caseValue}) {\n${baseIndent}${indentStep}${indentedElement}\n${baseIndent}}`;
 }
 
-function convertNgSwitchDefaultElement(openTag: string, innerContent: string, closeTag: string): string {
+function convertNgSwitchDefaultElement(openTag: string, innerContent: string, closeTag: string, baseIndent: string = ''): string {
     const cleanOpenTag = removeAttribute(openTag, '*ngSwitchDefault');
-    return `@default {\n  ${cleanOpenTag}${innerContent}${closeTag}\n}`;
+
+    const indentStep = '  ';
+    // Indent the content
+    const element = `${cleanOpenTag}${innerContent}${closeTag}`;
+    const indentedElement = element.replace(/\n/g, `\n${indentStep}`);
+
+    return `@default {\n${baseIndent}${indentStep}${indentedElement}\n${baseIndent}}`;
 }
 
-function convertNgSwitchContainerElement(openTag: string, innerContent: string, closeTag: string): string {
+function convertNgSwitchContainerElement(openTag: string, innerContent: string, closeTag: string, baseIndent: string = ''): string {
     const switchExpression = getAttribute(openTag, '[ngSwitch]');
     if (!switchExpression) return openTag + innerContent + closeTag;
 
     // For container, we remove the container element and wrap content in @switch
-    const cleanContent = innerContent.trim();
-    return `@switch (${switchExpression}) {\n${cleanContent}\n}`;
+    // The inner content usually contains elements with *ngSwitchCase which are indented
+    // relative to this container. Since we remove the container but add @switch wrapper,
+    // the relative indentation is preserved, effectively.
+    // However, we should ensure the closing brace is indented correctly.
+
+    return `@switch (${switchExpression}) {\n${innerContent}\n${baseIndent}}`;
 }
 
 function getAttribute(tag: string, attributeName: string): string | null {
@@ -251,8 +278,15 @@ function findElementRange(content: string, directiveIndex: number): { start: num
 
     if (openTagEnd === -1) return null;
 
-    // Check if self-closing
+    // Check if self-closing (explicit with />)
     if (content[openTagEnd - 1] === '/') {
+        return { start: startIndex, end: openTagEnd + 1, tagName, openTagEnd };
+    }
+
+    // Check if void element (implicit self-closing without /)
+    // These elements cannot have content, so we treat them as self-closing
+    const voidTags = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
+    if (voidTags.includes(tagName.toLowerCase())) {
         return { start: startIndex, end: openTagEnd + 1, tagName, openTagEnd };
     }
 
@@ -438,28 +472,24 @@ function convertSpecificElementInTypeScript(fileText: string, cursorLine: number
 function findElementAtLine(content: string, targetLine: number): { startIndex: number; endIndex: number; elementText: string } | null {
     const lines = content.split('\n');
 
-    // First, check if the target line itself contains a structural directive
-    const targetLineContent = lines[targetLine];
-    if (hasStructuralDirective(targetLineContent)) {
-        // This line has a structural directive, find the complete element it belongs to
-        return findCompleteElementFromLine(content, targetLine);
-    }
+    // Look backwards from targetLine to find the opening tag of the element containing this line
+    // We look back up to 100 lines to find the start of the tag
+    for (let i = targetLine; i >= Math.max(0, targetLine - 100); i--) {
+        const line = lines[i];
+        // Find all opening tags on this line: <tagName followed by something that is not a tag character
+        const openMatches = Array.from(line.matchAll(/<([\w-]+)(?![\w-])/g));
 
-    // If target line doesn't have directive, look nearby for elements that might span this line
-    for (let offset = 0; offset <= 3; offset++) {
-        // Check above
-        if (targetLine - offset >= 0 && hasStructuralDirective(lines[targetLine - offset])) {
-            const element = findCompleteElementFromLine(content, targetLine - offset);
-            if (element && elementSpansLine(element, content, targetLine)) {
-                return element;
-            }
-        }
+        // Check tags in reverse order (last one on the line is the most likely candidate)
+        for (let j = openMatches.length - 1; j >= 0; j--) {
+            const tagName = openMatches[j][1];
+            const element = findCompleteElement(content, i, tagName);
 
-        // Check below
-        if (targetLine + offset < lines.length && hasStructuralDirective(lines[targetLine + offset])) {
-            const element = findCompleteElementFromLine(content, targetLine + offset);
             if (element && elementSpansLine(element, content, targetLine)) {
-                return element;
+                // Found an element that spans the target line.
+                // Check if it has a structural directive.
+                if (hasStructuralDirective(element.elementText)) {
+                    return element;
+                }
             }
         }
     }
@@ -468,43 +498,13 @@ function findElementAtLine(content: string, targetLine: number): { startIndex: n
 }
 
 /**
- * Find complete element starting from a line that contains structural directive
+ * Find complete element starting from a specific line and tag name
  */
-function findCompleteElementFromLine(content: string, lineWithDirective: number): { startIndex: number; endIndex: number; elementText: string } | null {
+function findCompleteElement(content: string, startLine: number, tagName: string): { startIndex: number; endIndex: number; elementText: string } | null {
     const lines = content.split('\n');
-    const lineContent = lines[lineWithDirective];
-
-    // First, try to extract tag name from the same line (for inline cases)
-    let tagMatch = lineContent.match(/<([\w-]+)[\s\S]*?\*ng/);
-    let tagName: string | null = null;
-
-    if (tagMatch) {
-        tagName = tagMatch[1];
-    } else {
-        // If not found on same line, look backwards for the opening tag
-        for (let i = lineWithDirective; i >= 0; i--) {
-            const line = lines[i];
-            const openTagMatch = line.match(/<([\w-]+)(?:\s|$|>)/);
-            if (openTagMatch) {
-                tagName = openTagMatch[1];
-                break;
-            }
-        }
-    }
-
-    if (!tagName) return null;
-
-    // Find the start of this element (look for the opening tag)
-    let startLine = lineWithDirective;
-    for (let i = lineWithDirective; i >= 0; i--) {
-        if (lines[i].includes(`<${tagName}`)) {
-            startLine = i;
-            break;
-        }
-    }
 
     // Find the end of this element
-    let endLine = lineWithDirective;
+    let endLine = startLine;
     let depth = 0;
     let foundClosing = false;
 
@@ -512,7 +512,7 @@ function findCompleteElementFromLine(content: string, lineWithDirective: number)
         const line = lines[i];
 
         // Count opening tags
-        const openingTags = (line.match(new RegExp(`<${tagName}[\\s>]`, 'g')) || []).length;
+        const openingTags = (line.match(new RegExp(`<${tagName}(?![\\w-])`, 'g')) || []).length;
         depth += openingTags;
 
         // Count closing tags
@@ -620,5 +620,334 @@ function findTemplateAtPosition(fileText: string, line: number, char: number): {
     }
 
     return null;
+}
+
+/**
+ * Convert Angular control flow syntax (@if, @for, @switch) back to structural directives
+ */
+export function convertToStructuralDirectives(templateContent: string, filePath?: string): string {
+    // For TypeScript files, look for inline templates
+    if (filePath && filePath.endsWith('.ts')) {
+        // Pattern to match template properties in components
+        const templatePattern = /(template\s*:\s*)(["'`])([^]*?)\2/g;
+
+        return templateContent.replace(templatePattern, (match, prefix, quote, innerContent) => {
+            const convertedTemplate = convertToStructuralDirectives(innerContent); // Recursive call for just the content
+            return `${prefix}${quote}${convertedTemplate}${quote}`;
+        });
+    }
+
+    let result = templateContent;
+
+    // Safety break for infinite loops
+    let maxIterations = 500;
+    let iterations = 0;
+
+    // We process from inside out or just repeatedly until no more @ keywords are found
+    // that can be converted.
+    while (iterations < maxIterations) {
+        iterations++;
+
+        // Find the first @if, @for, or @switch
+        const keywords = ['@if', '@for', '@switch'];
+        let firstIndex = -1;
+        let firstKeyword = '';
+
+        for (const kw of keywords) {
+            const idx = result.indexOf(kw);
+            if (idx !== -1 && (firstIndex === -1 || idx < firstIndex)) {
+                // Ensure it's not inside a string or already converted
+                // Simple check: must be preceded by whitespace, newline, or start of string
+                if (idx === 0 || /[\s\n\r}]/.test(result[idx - 1])) {
+                    firstIndex = idx;
+                    firstKeyword = kw;
+                }
+            }
+        }
+
+        if (firstIndex === -1) break;
+
+        const block = findControlFlowBlock(result, firstIndex);
+        if (!block) {
+            // Skip this one if we can't parse it
+            // We need a way to mark it as "processed" if it's invalid
+            // For now, let's just break to avoid infinite loop if parsing fails
+            break;
+        }
+
+        let converted = '';
+        if (block.type === '@if') {
+            converted = convertIfBlockToDirective(block.expression, block.blockContent);
+        } else if (block.type === '@for') {
+            converted = convertForBlockToDirective(block.expression, block.blockContent);
+        } else if (block.type === '@switch') {
+            converted = convertSwitchBlockToDirective(block.expression, block.blockContent);
+        }
+
+        if (converted) {
+            result = result.substring(0, block.start) + converted + result.substring(block.end);
+        } else {
+            // If we couldn't convert it, skip it in next iteration
+            // This is a bit hacky but works for a simple string-based converter
+            break;
+        }
+    }
+
+    return result;
+}
+
+function findControlFlowBlock(content: string, startIndex: number): {
+    start: number,
+    end: number,
+    type: string,
+    expression: string,
+    blockContent: string
+} | null {
+    const remaining = content.substring(startIndex);
+    const match = remaining.match(/^(@if|@for|@switch)\s*\((.*?)\)\s*\{/s);
+    if (!match) return null;
+
+    const type = match[1];
+    const expression = match[2];
+    const openBraceIndex = startIndex + match[0].length - 1;
+
+    const closeBraceIndex = findMatchingBrace(content, openBraceIndex);
+    if (closeBraceIndex === -1) return null;
+
+    return {
+        start: startIndex,
+        end: closeBraceIndex + 1,
+        type,
+        expression,
+        blockContent: content.substring(openBraceIndex + 1, closeBraceIndex)
+    };
+}
+
+function findMatchingBrace(content: string, openBraceIndex: number): number {
+    let depth = 1;
+    for (let i = openBraceIndex + 1; i < content.length; i++) {
+        if (content[i] === '{') depth++;
+        else if (content[i] === '}') {
+            depth--;
+            if (depth === 0) return i;
+        }
+    }
+    return -1;
+}
+
+function convertIfBlockToDirective(expression: string, content: string): string {
+    // Preserve whitespace around the content
+    const match = content.match(/^(\s*)([\s\S]*?)(\s*)$/);
+    let leadingWs = match ? match[1] : '';
+    const actualContent = match ? match[2] : '';
+    let trailingWs = match ? match[3] : '';
+
+    // Clean up surrounding whitespace to remove the "ghost" of the @if block lines
+    // If leading whitespace contains a newline, we remove one level of newline/indentation
+    if (leadingWs.includes('\n')) {
+        leadingWs = leadingWs.replace(/^\r?\n\s*/, ' ');
+        // We replace with a space just in case, or empty string. 
+        // Better: if the block was multiline, we trust the inner content indentation
+        // but we want to strip the initial break that separated @if from content.
+    }
+
+    // Simplification strategy: 
+    // If the content is multiline, it likely has its own indentation that matches the start of @if.
+    // If we just return `actualContent`, it might be enough if we strip the bookending newlines.
+
+    // Refined approach: just use the whitespace that was *before* the element inside the block
+    // but without the initial newline if it exists.
+    const wsMatch = leadingWs.match(/(\r?\n\s*)$/);
+    if (wsMatch) {
+        // If there's a newline at the end of leadingWs, stripped it to avoid double newline
+        leadingWs = leadingWs.substring(0, leadingWs.length - wsMatch[1].length);
+        // And if led by newline, strip that too
+    }
+
+    // Simplest: just trim the vertical buffers
+    leadingWs = leadingWs.replace(/^\r?\n/, '');
+    trailingWs = trailingWs.replace(/\r?\n\s*$/, '');
+
+    // If it's a single element, put *ngIf on it
+    if (isSingleElement(actualContent)) {
+        return leadingWs + addAttributeToElement(actualContent, '*ngIf', expression) + trailingWs;
+    }
+    // Otherwise wrap in ng-container
+    // For ng-container wrapper, we might want to preserve the structure if it was multiline
+    return `<ng-container *ngIf="${expression}">${content}</ng-container>`;
+}
+
+function convertForBlockToDirective(expression: string, content: string): string {
+    // expression is like "item of items; track item.id"
+    // we want "let item of items"
+    const parts = expression.split(';').map(p => p.trim());
+    const mainPart = parts[0];
+    let structuralFor = `let ${mainPart}`;
+
+    // Handle explicit index variable if present (e.g. let i = $index)
+    for (const part of parts.slice(1)) {
+        if (part.startsWith('let ') && part.includes('= $index')) {
+            const match = part.match(/let\s+(\w+)\s*=\s*\$index/);
+            if (match) {
+                structuralFor += `; let ${match[1]} = index`;
+            }
+        }
+    }
+
+    // Preserve whitespace around the content
+    const match = content.match(/^(\s*)([\s\S]*?)(\s*)$/);
+    let leadingWs = match ? match[1] : '';
+    const actualContent = match ? match[2] : '';
+    let trailingWs = match ? match[3] : '';
+
+    // Cleanup whitespace
+    leadingWs = leadingWs.replace(/^\r?\n/, '');
+    trailingWs = trailingWs.replace(/\r?\n\s*$/, '');
+
+    if (isSingleElement(actualContent)) {
+        return leadingWs + addAttributeToElement(actualContent, '*ngFor', structuralFor) + trailingWs;
+    }
+    return `<ng-container *ngFor="${structuralFor}">${content}</ng-container>`;
+}
+
+function convertSwitchBlockToDirective(expression: string, content: string): string {
+    let inner = content;
+
+    // Convert @case
+    inner = inner.replace(/@case\s*\((.*?)\)\s*\{([^]*?)\}/g, (m, exp, cont) => {
+        const match = cont.match(/^(\s*)([\s\S]*?)(\s*)$/);
+        let leadingWs = match ? match[1] : '';
+        const actualContent = match ? match[2] : '';
+        let trailingWs = match ? match[3] : '';
+
+        // Cleanup whitespace
+        leadingWs = leadingWs.replace(/^\r?\n/, '');
+        trailingWs = trailingWs.replace(/\r?\n\s*$/, '');
+
+        if (isSingleElement(actualContent)) {
+            return leadingWs + addAttributeToElement(actualContent, '*ngSwitchCase', exp) + trailingWs;
+        }
+        return `<ng-container *ngSwitchCase="${exp}">${cont}</ng-container>`;
+    });
+
+    // Convert @default
+    inner = inner.replace(/@default\s*\{([^]*?)\}/g, (m, cont) => {
+        const match = cont.match(/^(\s*)([\s\S]*?)(\s*)$/);
+        let leadingWs = match ? match[1] : '';
+        const actualContent = match ? match[2] : '';
+        let trailingWs = match ? match[3] : '';
+
+        // Cleanup whitespace
+        leadingWs = leadingWs.replace(/^\r?\n/, '');
+        trailingWs = trailingWs.replace(/\r?\n\s*$/, '');
+
+        if (isSingleElement(actualContent)) {
+            return leadingWs + addAttributeToElement(actualContent, '*ngSwitchDefault', '') + trailingWs;
+        }
+        return `<ng-container *ngSwitchDefault>${cont}</ng-container>`;
+    });
+
+    return `<ng-container [ngSwitch]="${expression}">${inner}</ng-container>`;
+}
+
+function isSingleElement(content: string): boolean {
+    const trimmed = content.trim();
+    if (!trimmed.startsWith('<')) return false;
+
+    // Get tag name
+    const tagMatch = trimmed.match(/^<([\w-]+)/);
+    if (!tagMatch) return false;
+    const tagName = tagMatch[1];
+
+    let depth = 0;
+    let index = 0;
+
+    while (index < trimmed.length) {
+        // Find next < of interest
+        const openIndex = trimmed.indexOf('<', index);
+        if (openIndex === -1) break;
+
+        // Check closing first </tagName>
+        if (trimmed.startsWith(`</${tagName}>`, openIndex)) {
+            depth--;
+            index = openIndex + tagName.length + 3;
+
+            if (depth === 0) {
+                // If we closed the root, we must be at the end
+                return index === trimmed.length;
+            }
+        }
+        // Check opening <tagName
+        else if (trimmed.startsWith(`<${tagName}`, openIndex)) {
+            // Check boundary: next char must be space, slash or >
+            const charAfter = trimmed[openIndex + 1 + tagName.length];
+            if (/[\s\/>]/.test(charAfter)) {
+                // Scan to end of tag to check for self-closing
+                let innerInQuote = false;
+                let innerQuote = '';
+                let tagEnd = -1;
+
+                for (let k = openIndex + 1 + tagName.length; k < trimmed.length; k++) {
+                    const c = trimmed[k];
+                    if (innerInQuote) {
+                        if (c === innerQuote) innerInQuote = false;
+                    } else {
+                        if (c === '"' || c === "'") {
+                            innerInQuote = true;
+                            innerQuote = c;
+                        } else if (c === '>') {
+                            tagEnd = k;
+                            break;
+                        }
+                    }
+                }
+
+                if (tagEnd !== -1) {
+                    if (trimmed[tagEnd - 1] === '/') {
+                        // Self closing
+                        if (openIndex === 0) {
+                            // If root is self closing, it must match whole string
+                            return tagEnd === trimmed.length - 1;
+                        }
+                        // Nested self-closing, depth unchanged
+                        index = tagEnd + 1;
+                    } else {
+                        // Normal opening
+                        depth++;
+                        index = tagEnd + 1;
+                    }
+                } else {
+                    // Malformed tag, abort
+                    return false;
+                }
+            } else {
+                // Not our tag (e.g. <div vs <divider)
+                index = openIndex + 1;
+            }
+        } else {
+            // Other tag
+            index = openIndex + 1;
+        }
+    }
+
+    return false;
+}
+
+function addAttributeToElement(elementText: string, attrName: string, attrValue: string): string {
+    const firstTagEnd = elementText.indexOf('>');
+    if (firstTagEnd === -1) return elementText;
+
+    const isSelfClosing = elementText[firstTagEnd - 1] === '/';
+    const insertPos = isSelfClosing ? firstTagEnd - 1 : firstTagEnd;
+
+    const before = elementText.substring(0, insertPos);
+    const after = elementText.substring(insertPos);
+
+    const valuePart = attrValue ? `="${attrValue}"` : '';
+
+    // If 'before' already ends with whitespace, don't add another space
+    const separator = /\s$/.test(before) ? '' : ' ';
+
+    return `${before}${separator}${attrName}${valuePart}${after}`;
 }
 

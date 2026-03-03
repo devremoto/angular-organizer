@@ -1,6 +1,6 @@
 import { Project, SourceFile, ClassDeclaration, Node } from 'ts-morph';
 import * as ts from 'typescript';
-
+import * as vscode from 'vscode';
 
 
 export type OrganizeOptions = {
@@ -9,6 +9,7 @@ export type OrganizeOptions = {
   removeUnusedImports?: boolean; // default true - remove unused imports
   removeUnusedVariables?: boolean; // default true - remove unused variables and methods
   ensureBlankLineAfterImports?: boolean; // default true - ensure blank line after imports
+  cleanupCommentsOnOrganize?: boolean; // default false - remove comments
 };
 
 /* ========= Public API (each command calls one of these) ========= */
@@ -70,6 +71,13 @@ export function organizeAllTextWithProximity(fileText: string, filePath: string,
   return organizeAllText(fileText, filePath, mergedOpts);
 }
 
+// Remove unused methods, properties and variables
+export function removeUnusedMembersOnly(fileText: string, filePath: string): string {
+  const sf = createSource(fileText, filePath);
+  removeUnusedVariables(sf);
+  return sf.getFullText();
+}
+
 // Convenience “Only” exports — they all do the full member reorder
 export const reorderConstantsOnly = (t: string, p: string, o?: OrganizeOptions) => reorderMembers(t, p, o);
 export const reorderPrivateFieldsOnly = (t: string, p: string, o?: OrganizeOptions) => reorderMembers(t, p, o);
@@ -90,11 +98,6 @@ function stripRegionLines(text: string): string {
   return text.replace(/^\s*\/\/\s*#(?:end)?region\b.*$/gmi, '').replace(/\n{3,}/g, '\n\n');
 }
 
-// Convenience to get a member's text sanitized of old region lines
-function memberTextSansRegions(m: any): string {
-  return stripRegionLines(m.getText());
-}
-
 function reorderMembers(fileText: string, filePath: string, opts?: OrganizeOptions): string {
   const sf = createSource(fileText, filePath);
   reorderAngularClasses(sf, withDefaults(opts));
@@ -109,7 +112,8 @@ function withDefaults(opts?: OrganizeOptions): Required<OrganizeOptions> {
     optimizeMethodProximity: opts?.optimizeMethodProximity ?? false,
     removeUnusedImports: opts?.removeUnusedImports ?? true,
     removeUnusedVariables: opts?.removeUnusedVariables ?? true,
-    ensureBlankLineAfterImports: opts?.ensureBlankLineAfterImports ?? true
+    ensureBlankLineAfterImports: opts?.ensureBlankLineAfterImports ?? true,
+    cleanupCommentsOnOrganize: opts?.cleanupCommentsOnOrganize ?? false
   };
 }
 
@@ -210,30 +214,49 @@ function removeUnusedVariables(sf: SourceFile) {
   const classes = sf.getClasses();
 
   for (const cls of classes) {
-    const members = cls.getMembers();
-    const classText = cls.getText();
+    // We use a while loop because removing members affects the array length/indices
+    // and we might need multiple passes if a member usage was removed
+    let changed = true;
+    while (changed) {
+      changed = false;
+      const members = cls.getMembers();
+      const classText = cls.getText();
 
-    for (const member of members) {
-      // Only process property declarations and methods
-      if (!Node.isPropertyDeclaration(member) && !Node.isMethodDeclaration(member)) continue;
+      for (const member of members) {
+        // Only process property declarations, methods, and accessors
+        if (!Node.isPropertyDeclaration(member) &&
+          !Node.isMethodDeclaration(member) &&
+          !Node.isGetAccessorDeclaration(member) &&
+          !Node.isSetAccessorDeclaration(member)) continue;
 
-      // Only remove private members to be safe
-      if (!member.hasModifier?.('private')) continue;
+        // Only remove private members to be safe
+        if (!member.hasModifier?.('private')) continue;
 
-      const memberName = member.getName?.();
-      if (!memberName) continue;
+        const memberName = member.getName?.();
+        if (!memberName) continue;
 
-      // Skip constructors and lifecycle methods
-      if (Node.isConstructorDeclaration(member)) continue;
-      if (Node.isMethodDeclaration(member) && /^ng[A-Z]/.test(memberName)) continue;
+        // Skip constructors and lifecycle methods
+        if (Node.isConstructorDeclaration(member)) continue;
+        if (Node.isMethodDeclaration(member) && /^ng[A-Z]/.test(memberName)) continue;
 
-      // Check if the member is used within the class
-      const usagePattern = new RegExp(`\\b${escapeRegex(memberName)}\\b`, 'g');
-      const matches = classText.match(usagePattern) || [];
+        // Check if the member is used within the class
+        // We use a regex but we need to be careful about declarations
+        const usagePattern = new RegExp(`\\b${escapeRegex(memberName)}\\b`, 'g');
+        const matches = classText.match(usagePattern) || [];
 
-      // If only one match (the declaration itself), it's unused
-      if (matches.length <= 1) {
-        member.remove();
+        // Count how many times this name appears as a declaration in the class text
+        // This is a bit tricky with regex, so we'll count the members with the same name
+        const declarationCount = members.filter(m => {
+          if (Node.isConstructorDeclaration(m)) return false;
+          return (m as any).getName?.() === memberName;
+        }).length;
+
+        // If matches count is equal to declaration count, it's unused
+        if (matches.length <= declarationCount) {
+          member.remove();
+          changed = true;
+          break; // Restart the loop to get fresh members list and class text
+        }
       }
     }
   }
@@ -699,11 +722,10 @@ function getReorderedClassContent(cls: ClassDeclaration, opts: Required<Organize
   const before = src.slice(classStart, start);
   const after = src.slice(end, classEnd);
 
-
   const isMethodNode = (n: any) => Node.isMethodDeclaration(n) || Node.isConstructorDeclaration(n);
   const bucketIsMethody = (idx: number) => idx === 16 || idx === 17 || idx === 18 || idx === 19 || (idx >= 20 && idx <= 23);
 
-  const memberTextSansRegions = (m: any) => stripRegionLines(m.getText());
+  const memberTextSansRegions = (m: any) => stripRegionLines(opts.cleanupCommentsOnOrganize ? m.getText() : m.getFullText());
 
   const joinMembers = (arr: any[], ensureBlankBetweenMethods: boolean, bucketIndex?: number) => {
     // Special handling for Signal APIs bucket (index 5) regardless of ensureBlankBetweenMethods

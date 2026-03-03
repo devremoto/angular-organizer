@@ -58,14 +58,17 @@ export function removeCommentsExceptRegions(
 
         // Only remove the comment if we're not inside a string
         if (singleQuotes % 2 === 0 && doubleQuotes % 2 === 0 && templateQuotes % 2 === 0) {
-            result.push(beforeComment.trimEnd());
+            const processed = beforeComment.trimEnd();
+            if (processed !== '' || trimmed === '') {
+                result.push(processed);
+            }
         } else {
             // We're inside a string, keep the original line
             result.push(line);
         }
     }
 
-    return result.join('\n');
+    return result.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
 /**
